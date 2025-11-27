@@ -1,5 +1,5 @@
-### Punto Chino - App de Domicilios
-Punto Chino es una aplicación web Full Stack diseñada para modernizar la experiencia de pedidos del restaurante. Permite a los usuarios explorar un menú digital interactivo, filtrar platos por categorías, gestionar un carrito de compras dinámico y finalizar el pedido automáticamente a través de WhatsApp.
+### Yahn Hong - Web de Domicilios
+Yahn Hong es una aplicación web Full Stack diseñada para modernizar la experiencia de pedidos del restaurante. Permite a los usuarios explorar un menú digital interactivo, filtrar platos por categorías, gestionar un carrito de compras dinámico y finalizar el pedido automáticamente a través de WhatsApp.
 
 ### Características Principales
 Menú Digital Interactivo: Visualización de productos con imágenes reales y precios actualizados.

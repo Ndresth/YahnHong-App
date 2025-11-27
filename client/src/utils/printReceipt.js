@@ -18,7 +18,7 @@ export const printReceipt = (cart, total, client) => {
     const html = `
       <html>
         <head>
-          <title>Comanda Punto Chino</title>
+          <title>Comanda Yahn Hong</title>
           <style>
             /* Estilos para impresora térmica (58mm / 80mm) */
             body { 
@@ -55,9 +55,9 @@ export const printReceipt = (cart, total, client) => {
         </head>
         <body>
           <div class="header">
-            <h2>PUNTO CHINO</h2>
-            <div class="info">Calle 45 # 38-21 | Domicilios: 324 223 3760</div>
-            <div class="info"> NIT: 1044604619-2
+            <h2>YAHN HONG</h2>
+            <div class="info">Calle 45 # 2B - 09 | Domicilios: 302 229 7929</div>
+            <div class="info"> NIT: 22504696-1
             <div class="info">Fecha: ${date}</div>
           </div>
           

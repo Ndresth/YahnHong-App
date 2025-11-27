@@ -47,14 +47,14 @@ export default function CartSidebar({ isOpen, onClose }) {
     }).catch(err => console.error("Error guardando:", err));
 
     // 2. WHATSAPP
-    let mensaje = `*HOLA PUNTO CHINO, QUIERO UN PEDIDO:*\n\n`;
+    let mensaje = `*Hola Yahn Hong, quiero un pedido:*\n\n`;
     mensaje += `*Nombre:* ${cliente.nombre}\n*Tel:* ${cliente.telefono}\n*Dir:* ${cliente.direccion} - ${cliente.barrio}\n*Pago:* ${cliente.metodoPago}\n------------------\n`;
     cart.forEach(item => {
       mensaje += `- ${item.quantity}x ${item.nombre} (${item.selectedSize})\n`;
     });
     mensaje += `------------------\n*TOTAL: $${total.toLocaleString()}*`;
 
-    const url = `https://wa.me/573242233760?text=${encodeURIComponent(mensaje)}`;
+    const url = `https://wa.me/573022297929?text=${encodeURIComponent(mensaje)}`;
     window.open(url, '_blank');
 
     // 3. VACIAR CARRITO Y CERRAR

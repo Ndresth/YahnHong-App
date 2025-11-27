@@ -120,5 +120,5 @@ app.get(/.*/, (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`--- SERVIDOR PUNTO CHINO CORRIENDO EN PUERTO ${PORT} ---`);
+    console.log(`--- SERVIDOR Yahn Hong CORRIENDO EN PUERTO ${PORT} ---`);
 });
