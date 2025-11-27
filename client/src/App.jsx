@@ -96,11 +96,11 @@ function Navbar({ onOpenCart }) {
       <div className="container-fluid d-flex justify-content-between align-items-center">
         <Link to="/" className="navbar-brand d-flex align-items-center gap-2">
           <div className="bg-white rounded-circle d-flex justify-content-center align-items-center shadow-sm" style={{width:'50px', height:'50px', padding:'3px'}}>
-             <img src="/images/logo.png" alt="Logo" style={{width: '100%', height: '100%', objectFit: 'contain'}} />
+             <img src="/logo.png" alt="Logo" style={{width: '100%', height: '100%', objectFit: 'contain'}} />
           </div>
           <div className="d-flex flex-column">
-            <span className="brand-text">PUNTO CHINO</span>
-            <span className="brand-subtext">Comida Oriental</span>
+            <span className="brand-text">Yahn Hong</span>
+            <span className="brand-subtext">Comida China e Internacional</span>
           </div>
         </Link>
         <button onClick={onOpenCart} className="btn btn-warning rounded-pill fw-bold shadow-sm d-flex align-items-center gap-2 px-3 border-0" style={{background: '#FFC107', color: '#212121'}}>
