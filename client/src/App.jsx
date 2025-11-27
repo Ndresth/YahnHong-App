@@ -103,7 +103,7 @@ function Navbar({ onOpenCart }) {
             <span className="brand-subtext">Comida China e Internacional</span>
           </div>
         </Link>
-        <button onClick={onOpenCart} className="btn btn-warning rounded-pill fw-bold shadow-sm d-flex align-items-center gap-2 px-3 border-0" style={{background: '#FFC107', color: '#212121'}}>
+        <button onClick={onOpenCart} className="btn btn-warning rounded-pill fw-bold shadow-sm d-flex align-items-center gap-2 px-3 border-0" style={{background: '#c62828', color: '#212121'}}>
           <i className="bi bi-cart-fill"></i> <span className="d-none d-sm-inline">Tu Pedido</span>
           {totalItems > 0 && (<span className="badge bg-dark text-white rounded-pill ms-1">{totalItems}</span>)}
         </button>
