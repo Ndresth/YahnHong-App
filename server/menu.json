@@ -1,0 +1,56 @@
+[
+  { "id": 1, "categoria": "Arroz Frito", "nombre": "Arroz Super Especial", "descripcion": "Pollo, Carne, Camarón, Chorizo, Butifarra, Jamón, Presa de pollo", "precios": { "familiar": 43000, "mediano": 32000 }, "imagen": "/images/Arroz-Super.jpg" },
+  { "id": 2, "categoria": "Arroz Frito", "nombre": "Arroz Especial", "descripcion": "Trocitos de Pollo, Camarón, Jamón, Carne, Cerdo", "precios": { "familiar": 36000, "mediano": 26000, "personal": 19000 }, "imagen": "/images/Arroz-Especial.jpg" },
+  { "id": 3, "categoria": "Arroz Frito", "nombre": "Arroz Costeño", "descripcion": "Pollo, Carne, Butifarra, Chorizo, Jamón", "precios": { "familiar": 36000, "mediano": 26000, "personal": 19000 }, "imagen": "/images/Arroz-Costeño.jpg" },
+  { "id": 4, "categoria": "Arroz Frito", "nombre": "Arroz Paisa", "descripcion": "Pollo, Carne, Chorizo, Cerdo, Jamón, Chicharrón, Maíz, Plátano, Cebollín, Raíz", "precios": { "familiar": 50000, "mediano": 38000 }, "imagen": "/images/Arroz-Paisa.jpg" },
+  { "id": 5, "categoria": "Arroz Frito", "nombre": "Arroz con Pollo", "descripcion": "Con pollo en trocitos", "precios": { "familiar": 36000, "mediano": 26000, "personal": 19000 }, "imagen": "/images/Arroz-Pollo.jpg" },
+  { "id": 6, "categoria": "Arroz Frito", "nombre": "Arroz de Camarones", "descripcion": "Arroz con camarones", "precios": { "familiar": 45000, "mediano": 33000, "personal": 21000 }, "imagen": "/images/Arroz-Camaron.jpg" },
+  { "id": 7, "categoria": "Arroz Frito", "nombre": "Arroz a la Valenciana", "descripcion": "Jamón, Chorizo, Butifarra, Presa de pollo", "precios": { "familiar": 32000, "mediano": 22000, "personal": 13000 }, "imagen": "/images/Arroz-Valenciana.jpg" },
+  { "id": 8, "categoria": "Arroz Frito", "nombre": "Arroz con Pollo y Camarones", "descripcion": "Mixto", "precios": { "familiar": 40000, "mediano": 29000, "personal": 20000 }, "imagen": "/images/Arroz-PC.jpg" },
+  { "id": 9, "categoria": "Arroz Frito", "nombre": "Arroz con Carne", "descripcion": "Con trozos de carne", "precios": { "familiar": 36000, "mediano": 26000, "personal": 19000 }, "imagen": "/images/Arroz-Carne.jpg" },
+  { "id": 10, "categoria": "Arroz Frito", "nombre": "Arroz con Carne y Pollo", "descripcion": "Mixto", "precios": { "familiar": 36000, "mediano": 26000, "personal": 19000 }, "imagen": "/images/Arroz-CyP.jpg" },
+  { "id": 11, "categoria": "Arroz Frito", "nombre": "Arroz con Vegetales", "descripcion": "Opción vegetariana", "precios": { "familiar": 36000, "mediano": 26000 }, "imagen": "/images/Arroz-Vege.jpg" },
+
+  { "id": 20, "categoria": "Chop Suey", "nombre": "Chop Suey Especial", "descripcion": "Vegetales salteados especial", "precios": { "familiar": 36000, "mediano": 27000, "personal": 19000 }, "imagen": "/images/EspecialChop.jpg" },
+  { "id": 21, "categoria": "Chop Suey", "nombre": "Chop Suey con Pollo", "descripcion": "Vegetales salteados con pollo", "precios": { "familiar": 36000, "mediano": 27000, "personal": 19000 }, "imagen": "/images/ChopPollo.jpg" },
+  { "id": 22, "categoria": "Chop Suey", "nombre": "Chop Suey con Camarón", "descripcion": "Vegetales salteados con camarón", "precios": { "familiar": 45000, "mediano": 33000, "personal": 21000 }, "imagen": "/images/SoloCamaron.jpg" },
+  { "id": 23, "categoria": "Chop Suey", "nombre": "Chop Suey Pollo y Camarón", "descripcion": "Mixto", "precios": { "familiar": 40000, "mediano": 29000, "personal": 20000 }, "imagen": "/images/Especial.jpg" },
+  { "id": 24, "categoria": "Chop Suey", "nombre": "Chop Suey con Carne", "descripcion": "Vegetales con carne", "precios": { "familiar": 36000, "mediano": 27000, "personal": 19000 }, "imagen": "/images/Especial.jpg" },
+  { "id": 25, "categoria": "Chop Suey", "nombre": "De Vegetales", "descripcion": "Solo vegetales salteados", "precios": { "familiar": 36000, "mediano": 27000, "personal": 19000 }, "imagen": "/images/Vege.jpg" },
+  { "id": 26, "categoria": "Chop Suey", "nombre": "Rice Coling", "descripcion": "Especialidad de la casa", "precios": { "unico": 55000 }, "imagen": "/images/Ricecol.jpg" },
+
+  { "id": 30, "categoria": "Espaguetes", "nombre": "Espaguetes Especial", "descripcion": "Pasta especial de la casa", "precios": { "familiar": 35000, "mediano": 25000 }, "imagen": "/images/Pastas.jpg" },
+  { "id": 31, "categoria": "Espaguetes", "nombre": "Espaguetes con Pollo", "descripcion": "Con trozos de pollo", "precios": { "familiar": 35000, "mediano": 25000 }, "imagen": "/images/Pastas.jpg" },
+  { "id": 32, "categoria": "Espaguetes", "nombre": "Espaguetes con Carne", "descripcion": "Con trozos de carne", "precios": { "familiar": 35000, "mediano": 25000 }, "imagen": "/images/Pastas.jpg" },
+  { "id": 33, "categoria": "Espaguetes", "nombre": "Espaguetes con Camarón", "descripcion": "Con camarones", "precios": { "familiar": 45000, "mediano": 33000 }, "imagen": "/images/Pastas.jpg" },
+
+  { "id": 40, "categoria": "Agridulce", "nombre": "Agridulce de Pollo", "descripcion": "Pollo en salsa agridulce", "precios": { "familiar": 35000, "mediano": 25000 }, "imagen": "/images/Agridulce.jpg" },
+  { "id": 41, "categoria": "Agridulce", "nombre": "Agridulce de Cerdo", "descripcion": "Cerdo en salsa agridulce", "precios": { "familiar": 35000, "mediano": 25000 }, "imagen": "/images/Agridulce.jpg" },
+
+  { "id": 50, "categoria": "Platos Especiales", "nombre": "Carne Asada", "descripcion": "Acompañado con Papa a la francesa, Ensalada", "precios": { "unico": 32000 }, "imagen": "/images/CarneAsada.jpg" },
+  { "id": 51, "categoria": "Platos Especiales", "nombre": "Carne Asada Mediana", "descripcion": "Acompañado con Papa a la francesa, Ensalada", "precios": { "unico": 25000 }, "imagen": "/images/CarneAsada.jpg" },
+  { "id": 52, "categoria": "Platos Especiales", "nombre": "Porción de Pollo a la Broaster", "descripcion": "Acompañado con Papa a la francesa, Ensalada", "precios": { "unico": 15000 }, "imagen": "/images/PolloBroasterk.jpg" },
+  { "id": 53, "categoria": "Platos Especiales", "nombre": "Medio Pollo a la Broaster", "descripcion": "Acompañado con Papa a la francesa, Ensalada", "precios": { "unico": 25000 }, "imagen": "/images/PolloBroasterk.jpg" },
+  { "id": 54, "categoria": "Platos Especiales", "nombre": "Pollo Entero a la Broaster", "descripcion": "Acompañado con Papa a la francesa, Ensalada", "precios": { "unico": 35000 }, "imagen": "/images/PolloBroasterk.jpg" },
+  { "id": 55, "categoria": "Platos Especiales", "nombre": "Pollo a la Plancha", "descripcion": "Acompañado con Papa a la francesa, Ensalada", "precios": { "unico": 25000 }, "imagen": "/images/PechugaAsada.jpg" },
+  { "id": 56, "categoria": "Platos Especiales", "nombre": "Combo Picada Mixta", "descripcion": "Picada de carne asada, pechuga asada y pollo broasterk, con papas a la francesa y ensalada", "precios": { "unico": 25000 }, "imagen": "/images/PicadaMixta.jpg" },
+
+  { "id": 60, "categoria": "Comidas Corrientes", "nombre": "Con Pollo a la Broaster", "descripcion": "Arroz frito, papitas, ensalada, sopa", "precios": { "unico": 14500 }, "imagen": "/images/CorrientePollo.jpg" },
+  { "id": 61, "categoria": "Comidas Corrientes", "nombre": "Con Pollo a la Plancha", "descripcion": "Arroz frito, papitas, ensalada, sopa", "precios": { "unico": 14500 }, "imagen": "/images/CorrientePechuga.jpg" },
+  { "id": 62, "categoria": "Comidas Corrientes", "nombre": "Con Carne", "descripcion": "Arroz frito, papitas, ensalada, sopa", "precios": { "unico": 14500 }, "imagen": "/images/CorrienteCarne.jpg" },
+  { "id": 63, "categoria": "Comidas Corrientes", "nombre": "Con Carne Bisteck", "descripcion": "Arroz frito, papitas, ensalada, sopa", "precios": { "unico": 15000 }, "imagen": "/images/CorrienteCB.jpg" },
+  { "id": 64, "categoria": "Comidas Corrientes", "nombre": "Con Cerdo", "descripcion": "Arroz frito, papitas, ensalada, sopa", "precios": { "unico": 14500 }, "imagen": "/images/CorrienteCarne.jpg" },
+
+  { "id": 80, "categoria": "Porciones", "nombre": "De Papa Francesa", "descripcion": "Porción", "precios": { "unico": 5000 }, "imagen": "/images/Papas.jpg" },
+  { "id": 81, "categoria": "Porciones", "nombre": "De Ensalada", "descripcion": "Porción", "precios": { "unico": 5000 }, "imagen": "/images/Ensalada.jpg" },
+  { "id": 82, "categoria": "Porciones", "nombre": "De Arroz", "descripcion": "Porción", "precios": { "unico": 5000 }, "imagen": "/images/Arroz.jpg" },
+  { "id": 83, "categoria": "Porciones", "nombre": "De Pollo", "descripcion": "Porción", "precios": { "unico": 5000 }, "imagen": "/images/Pollo.jpg" },
+
+  { "id": 70, "categoria": "Bebidas", "nombre": "Postobon Personal", "descripcion": "Gaseosa", "precios": { "unico": 2500 }, "imagen": "/images/manzana-postobon-350-RET-1.jpg" },
+  { "id": 71, "categoria": "Bebidas", "nombre": "Coca Cola Personal", "descripcion": "Original", "precios": { "unico": 3000 }, "imagen": "/images/CocaCola-vidirio-350ml.jpg" },
+  { "id": 72, "categoria": "Bebidas", "nombre": "Coca Cola 400", "descripcion": "Plástica", "precios": { "unico": 4000 }, "imagen": "/images/Cocacolacuatrocientos.jpg" },
+  { "id": 73, "categoria": "Bebidas", "nombre": "Postobon Litron", "descripcion": "Gaseosa litron", "precios": { "unico": 5000 }, "imagen": "/images/Manzana-1.25-retornable.jpg" },
+  { "id": 74, "categoria": "Bebidas", "nombre": "Coca Cola Litro", "descripcion": "Original", "precios": { "unico": 6000 }, "imagen": "/images/9_col_ccso_navidad_1_litro_glass.jpg" },
+  { "id": 75, "categoria": "Bebidas", "nombre": "Coca Cola 1.5", "descripcion": "Original", "precios": { "unico": 9000 }, "imagen": "/images/Cocacolaunopcinco.jpg" },
+  { "id": 76, "categoria": "Bebidas", "nombre": "Cerveza", "descripcion": "Preguntar por disponibilidad", "precios": { "unico": 3000 }, "imagen": "/images/cerveza-aguila-x355ml-original.jpg" }
+]
