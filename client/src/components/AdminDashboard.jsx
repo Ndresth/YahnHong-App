@@ -14,15 +14,15 @@ export default function AdminDashboard() {
     navigate('/login');
   };
 
+  // Cargar Productos (Ruta relativa para Render)
   const fetchProductos = () => {
-    // En local usa http://localhost:3000/api/productos
-    // En Render usa /api/productos
     fetch('/api/productos')
       .then(res => res.json())
       .then(data => setProductos(data))
       .catch(err => console.error(err));
   };
 
+  // Cargar Ventas
   const fetchVentas = () => {
     fetch('/api/ventas/hoy')
       .then(res => res.json())
@@ -33,11 +33,12 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchProductos();
     fetchVentas();
-    const interval = setInterval(fetchVentas, 10000);
+    // Actualizar ventas cada 30 segs
+    const interval = setInterval(fetchVentas, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  // --- FUNCIÓN CORREGIDA PARA REINICIAR A 0 ---
+  // --- FUNCIÓN MAGICA CORREGIDA ---
   const handleCerrarCaja = async () => {
     if (!window.confirm("⚠️ ¿CERRAR CAJA?\n\n1. Se descargará el Excel con el TOTAL.\n2. Se BORRARÁN todos los pedidos para iniciar mañana en $0.")) {
         return;
@@ -57,9 +58,9 @@ export default function AdminDashboard() {
                 if (res.ok) {
                     alert("✅ ¡Caja Cerrada! El sistema está limpio.");
                     
-                    // --- AQUÍ ESTÁ EL TRUCO: FORZAMOS EL 0 VISUALMENTE ---
+                    // --- AQUÍ ESTÁ LA CORRECCIÓN: Forzamos el 0 visualmente ---
                     setVentas({ total: 0, cantidadPedidos: 0 });
-                    // ----------------------------------------------------
+                    // ---------------------------------------------------------
                     
                 } else {
                     alert("Hubo un error al intentar borrar los datos.");
@@ -69,7 +70,7 @@ export default function AdminDashboard() {
                 alert("Error de conexión al intentar cerrar caja.");
             }
         }
-    }, 3000); // Esperamos 3 segundos para dar tiempo a la descarga
+    }, 3000);
   };
 
   const handleDelete = (id) => {
@@ -97,6 +98,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="container py-5">
+      
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2 className="fw-bold text-dark">Panel Administrativo</h2>
         <button className="btn btn-danger" onClick={handleLogout}>Salir</button>
