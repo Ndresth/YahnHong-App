@@ -1,7 +1,7 @@
 export const printReceipt = (cart, total, client) => {
-    // Abrimos una ventana pequeña invisible para preparar el recibo
-    const receiptWindow = window.open('', '', 'width=300,height=600');
-    const date = new Date().toLocaleString();
+    // Aumentamos un poco el ancho de la ventana para evitar cortes
+    const receiptWindow = window.open('', '', 'width=400,height=600');
+    const date = new Date().toLocaleString('es-CO');
   
     // Generamos la lista de productos en HTML
     const itemsHtml = cart.map(item => `
@@ -10,7 +10,9 @@ export const printReceipt = (cart, total, client) => {
             ${item.quantity} x ${item.nombre} 
             <div class="size">(${item.selectedSize})</div>
         </div>
-        <div class="price">$${(item.selectedPrice * item.quantity).toLocaleString()}</div>
+        <div class="price">
+           $${Number(item.selectedPrice * item.quantity).toLocaleString('es-CO')}
+        </div>
       </div>
     `).join('');
   
@@ -18,38 +20,49 @@ export const printReceipt = (cart, total, client) => {
     const html = `
       <html>
         <head>
-          <title>Comanda Yahn Hong</title>
+          <title>Comanda Punto Chino</title>
           <style>
             /* Estilos para impresora térmica (58mm / 80mm) */
+            @page { margin: 0; }
             body { 
                 font-family: 'Courier New', monospace; 
-                font-size: 12px; 
+                /* Aumentamos la fuente base para que se lea mejor */
+                font-size: 14px; 
                 width: 100%; 
-                max-width: 300px; /* Ancho estándar de ticket */
-                margin: 0 auto; 
-                padding: 5px; 
+                /* Ajustamos el ancho máximo para 80mm, si usas 58mm cámbialo a 58mm */
+                max-width: 280px; 
+                margin: 0; 
+                padding: 10px; 
                 color: black;
+                font-weight: 600; /* Negrita suave para mejor impresión */
             }
-            .header { text-align: center; margin-bottom: 10px; border-bottom: 1px dashed black; padding-bottom: 5px; }
-            .header h2 { margin: 0; font-size: 16px; font-weight: bold; text-transform: uppercase; }
-            .info { font-size: 10px; margin-bottom: 5px; }
+            .header { text-align: center; margin-bottom: 15px; border-bottom: 2px dashed black; padding-bottom: 10px; }
+            .header h2 { margin: 0; font-size: 20px; font-weight: 900; text-transform: uppercase; }
+            .info { font-size: 12px; margin-bottom: 5px; }
             
-            .client-info { margin-bottom: 10px; border-bottom: 1px dashed black; padding-bottom: 5px; }
-            .client-row { display: flex; font-size: 11px; margin-bottom: 2px; }
-            .label { font-weight: bold; width: 50px; }
+            .client-info { margin-bottom: 15px; border-bottom: 2px dashed black; padding-bottom: 10px; }
+            .client-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
+            .label { font-weight: 800; margin-right: 5px; }
   
-            .item { display: flex; justify-content: space-between; margin-bottom: 8px; align-items: flex-start; }
-            .prod-name { width: 70%; font-weight: bold; }
-            .size { font-weight: normal; font-size: 10px; font-style: italic; }
-            .price { width: 30%; text-align: right; }
+            .item { display: flex; justify-content: space-between; margin-bottom: 10px; align-items: flex-start; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+            .prod-name { width: 65%; font-weight: bold; font-size: 13px; line-height: 1.2; }
+            .size { font-weight: normal; font-size: 11px; font-style: italic; margin-top: 2px; }
+            .price { width: 35%; text-align: right; font-size: 13px; white-space: nowrap; }
   
-            .total-section { border-top: 1px dashed black; margin-top: 10px; padding-top: 5px; text-align: right; font-size: 14px; font-weight: bold; }
+            .total-section { 
+                border-top: 2px dashed black; 
+                margin-top: 15px; 
+                padding-top: 10px; 
+                text-align: right; 
+                font-size: 18px; 
+                font-weight: 900; 
+            }
             
-            .footer { text-align: center; margin-top: 20px; font-size: 10px; }
+            .footer { text-align: center; margin-top: 30px; font-size: 12px; font-style: italic;}
             
             @media print {
               @page { margin: 0; size: auto; }
-              body { margin: 5px; }
+              body { margin: 0; }
             }
           </style>
         </head>
@@ -57,7 +70,7 @@ export const printReceipt = (cart, total, client) => {
           <div class="header">
             <h2>YAHN HONG</h2>
             <div class="info">Calle 45 # 2B - 09 | Domicilios: 302 229 7929</div>
-            <div class="info"> NIT: 22504696-1
+            <div class="info">NIT: 22504696-1</div>
             <div class="info">Fecha: ${date}</div>
           </div>
           
@@ -73,12 +86,12 @@ export const printReceipt = (cart, total, client) => {
           </div>
   
           <div class="total-section">
-            TOTAL: $${total.toLocaleString()}
+            TOTAL: $${Number(total).toLocaleString('es-CO')}
           </div>
           
           <div class="footer">
              *** Gracias por su compra ***
-             <br>Vuelva pronto <3
+             <br>Vuelva pronto &lt;3
           </div>
         </body>
       </html>
@@ -95,4 +108,4 @@ export const printReceipt = (cart, total, client) => {
       // Opcional: cerrar la ventana automáticamente después de imprimir
       // receiptWindow.close(); 
     }, 500);
-  };
+};

@@ -3,60 +3,82 @@ import { Link, useNavigate } from 'react-router-dom';
 import ProductForm from './ProductForm';
 
 export default function AdminDashboard() {
-  // 1. Declaración de estados (Aquí nace setProductos)
   const [productos, setProductos] = useState([]);
+  const [ventas, setVentas] = useState({ total: 0, cantidadPedidos: 0 });
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const navigate = useNavigate();
 
-  // Función para cerrar sesión
   const handleLogout = () => {
     localStorage.removeItem('isAdmin');
     navigate('/login');
   };
 
-  // 2. Función para Cargar Productos (Dentro del componente para usar setProductos)
   const fetchProductos = () => {
-    // Usamos la URL completa para local: http://localhost:3000
+    // En local usa http://localhost:3000/api/productos
+    // En Render usa /api/productos
     fetch('/api/productos')
       .then(res => res.json())
       .then(data => setProductos(data))
-      .catch(err => console.error("Error cargando productos:", err));
+      .catch(err => console.error(err));
   };
 
-  // 3. Efecto inicial
+  const fetchVentas = () => {
+    fetch('/api/ventas/hoy')
+      .then(res => res.json())
+      .then(data => setVentas(data))
+      .catch(err => console.error(err));
+  };
+
   useEffect(() => {
     fetchProductos();
+    fetchVentas();
+    const interval = setInterval(fetchVentas, 10000);
+    return () => clearInterval(interval);
   }, []);
 
-  // 4. Eliminar
+  // --- FUNCIÓN CORREGIDA PARA REINICIAR A 0 ---
+  const handleCerrarCaja = async () => {
+    if (!window.confirm("⚠️ ¿CERRAR CAJA?\n\n1. Se descargará el Excel con el TOTAL.\n2. Se BORRARÁN todos los pedidos para iniciar mañana en $0.")) {
+        return;
+    }
+
+    // 1. Descargar Excel
+    window.open('/api/ventas/excel', '_blank');
+
+    // 2. Preguntar confirmación de borrado
+    setTimeout(async () => {
+        const confirmDelete = window.confirm("¿El Excel se descargó correctamente?\n\nSi le das ACEPTAR, el sistema se reiniciará a $0.");
+        
+        if (confirmDelete) {
+            try {
+                const res = await fetch('/api/ventas/cerrar', { method: 'DELETE' });
+                
+                if (res.ok) {
+                    alert("✅ ¡Caja Cerrada! El sistema está limpio.");
+                    
+                    // --- AQUÍ ESTÁ EL TRUCO: FORZAMOS EL 0 VISUALMENTE ---
+                    setVentas({ total: 0, cantidadPedidos: 0 });
+                    // ----------------------------------------------------
+                    
+                } else {
+                    alert("Hubo un error al intentar borrar los datos.");
+                }
+            } catch (error) {
+                console.error(error);
+                alert("Error de conexión al intentar cerrar caja.");
+            }
+        }
+    }, 3000); // Esperamos 3 segundos para dar tiempo a la descarga
+  };
+
   const handleDelete = (id) => {
-    if (window.confirm('¿Seguro que quieres eliminar este plato?')) {
+    if (window.confirm('¿Eliminar plato?')) {
       fetch(`/api/productos/${id}`, { method: 'DELETE' })
-      .then(res => {
-        if (!res.ok) throw new Error("Error al eliminar");
-        return res.json();
-      })
-      .then(() => {
-        alert('Producto eliminado');
-        fetchProductos(); // Recargar lista
-      })
-      .catch(err => alert("Error al eliminar: " + err));
+      .then(() => { alert('Eliminado'); fetchProductos(); });
     }
   };
 
-  // 5. Abrir Formulario
-  const handleAddNew = () => {
-    setEditingProduct(null);
-    setShowForm(true);
-  };
-
-  const handleEdit = (producto) => {
-    setEditingProduct(producto);
-    setShowForm(true);
-  };
-
-  // 6. Guardar (Crear o Editar)
   const handleSave = (formData) => {
     const method = editingProduct ? 'PUT' : 'POST';
     const url = editingProduct 
@@ -67,28 +89,45 @@ export default function AdminDashboard() {
         method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
-    })
-    .then(res => {
-        if (!res.ok) throw new Error("Error en la respuesta del servidor");
-        return res.json();
-    })
-    .then(() => {
-        alert('¡Guardado con éxito!');
+    }).then(() => {
         setShowForm(false);
-        fetchProductos(); // Recargar lista
-    })
-    .catch(err => alert("Error al guardar: " + err));
+        fetchProductos();
+    });
   };
 
   return (
     <div className="container py-5">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2 className="fw-bold text-dark">Panel Administrativo</h2>
-        <div className="d-flex gap-2">
-            <Link to="/" className="btn btn-outline-secondary">Ver Tienda</Link>
-            <button className="btn btn-danger" onClick={handleLogout}>Salir</button>
-            <button className="btn btn-success fw-bold" onClick={handleAddNew}>+ Nuevo Plato</button>
+        <button className="btn btn-danger" onClick={handleLogout}>Salir</button>
+      </div>
+
+      {/* ZONA FINANCIERA */}
+      <div className="row mb-5">
+        <div className="col-md-12">
+            <div className="card bg-dark text-white shadow">
+                <div className="card-body d-flex flex-column flex-md-row justify-content-between align-items-center p-4">
+                    <div className="mb-3 mb-md-0">
+                        <h5 className="text-white-50 mb-1">Ventas Acumuladas ({ventas.cantidadPedidos} pedidos)</h5>
+                        <h1 className="display-4 fw-bold text-warning mb-0">${ventas.total.toLocaleString()}</h1>
+                    </div>
+                    <div className="text-end">
+                        <button onClick={handleCerrarCaja} className="btn btn-light fw-bold px-4 py-3 rounded-pill">
+                            <i className="bi bi-file-earmark-spreadsheet-fill text-success me-2"></i> 
+                            Cerrar Caja y Reiniciar
+                        </button>
+                        <div className="text-white-50 small mt-2">
+                            *Descarga reporte y borra historial
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
+      </div>
+
+      <div className="d-flex justify-content-between align-items-center mb-3">
+        <h4>Gestión de Menú</h4>
+        <button className="btn btn-success fw-bold" onClick={() => { setEditingProduct(null); setShowForm(true); }}>+ Nuevo Plato</button>
       </div>
 
       <div className="card shadow-sm border-0">
@@ -100,7 +139,7 @@ export default function AdminDashboard() {
                   <th className="p-3">Imagen</th>
                   <th>Nombre</th>
                   <th>Categoría</th>
-                  <th>Precio Ref.</th>
+                  <th>Precio</th>
                   <th className="text-end p-3">Acciones</th>
                 </tr>
               </thead>
@@ -108,24 +147,14 @@ export default function AdminDashboard() {
                 {productos.map((prod) => (
                   <tr key={prod.id}>
                     <td className="p-3">
-                      <img 
-                        src={prod.imagen || "https://via.placeholder.com/50"} 
-                        alt="img" 
-                        className="rounded" 
-                        style={{width: '50px', height: '50px', objectFit: 'cover'}} 
-                      />
+                      <img src={prod.imagen || "https://via.placeholder.com/50"} alt="img" className="rounded" style={{width: '50px', height: '50px', objectFit: 'cover'}} />
                     </td>
                     <td className="fw-bold">{prod.nombre}</td>
                     <td><span className="badge bg-secondary text-light">{prod.categoria}</span></td>
-                    {/* Validación para evitar error si precios es undefined */}
                     <td>${prod.precios ? Object.values(prod.precios).find(p => p > 0)?.toLocaleString() : '0'}</td>
                     <td className="text-end p-3">
-                      <button className="btn btn-sm btn-outline-primary me-2" onClick={() => handleEdit(prod)}>
-                        <i className="bi bi-pencil-fill"></i> Editar
-                      </button>
-                      <button className="btn btn-sm btn-outline-danger" onClick={() => handleDelete(prod.id)}>
-                        <i className="bi bi-trash-fill"></i>
-                      </button>
+                      <button className="btn btn-sm btn-outline-primary me-2" onClick={() => { setEditingProduct(prod); setShowForm(true); }}>Editar</button>
+                      <button className="btn btn-sm btn-outline-danger" onClick={() => handleDelete(prod.id)}>Eliminar</button>
                     </td>
                   </tr>
                 ))}
@@ -135,7 +164,6 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Renderizado condicional del formulario */}
       {showForm && (
         <ProductForm 
             productToEdit={editingProduct} 
