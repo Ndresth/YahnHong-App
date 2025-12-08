@@ -141,6 +141,84 @@ app.get('/api/cierres', verifyToken, async (req, res) => {
     res.json(cierres);
 });
 
+// --- EXCEL DETALLADO (MULTI-HOJA) ---
+app.get('/api/ventas/excel/:id', verifyToken, async (req, res) => {
+    try {
+        const cierreId = req.params.id;
+        let query = {};
+        let tituloArchivo = "";
+
+        // Si el ID es 'actual', descargamos lo que va del turno sin cerrar
+        if (cierreId === 'actual') {
+            query = { cierre_id: null };
+            tituloArchivo = `Cierre_Parcial_${new Date().toLocaleDateString('es-CO').replace(/\//g, '-')}`;
+        } else {
+            // Si es un ID específico, descargamos el histórico
+            query = { cierre_id: cierreId };
+            tituloArchivo = `Reporte_Historico_${cierreId}`;
+        }
+
+        const ordenes = await Order.find(query).lean();
+        const gastos = await Gasto.find(query).lean();
+
+        // CÁLCULOS GLOBALES
+        const totalVentas = ordenes.reduce((acc, o) => acc + o.total, 0);
+        const totalGastos = gastos.reduce((acc, g) => acc + g.monto, 0);
+        const balanceNeto = totalVentas - totalGastos;
+
+        const workBook = XLSX.utils.book_new();
+
+        // --- HOJA 1: RESUMEN FINANCIERO ---
+        const resumenData = [
+            { CONCEPTO: "--- BALANCE GENERAL ---", VALOR: "" },
+            { CONCEPTO: "TOTAL VENTAS", VALOR: totalVentas },
+            { CONCEPTO: "TOTAL GASTOS", VALOR: totalGastos },
+            { CONCEPTO: "SALDO NETO (CAJA)", VALOR: balanceNeto },
+            { CONCEPTO: "", VALOR: "" },
+            { CONCEPTO: "--- ESTADÍSTICAS ---", VALOR: "" },
+            { CONCEPTO: "Cantidad Pedidos", VALOR: ordenes.length },
+            { CONCEPTO: "Cantidad Gastos", VALOR: gastos.length },
+            { CONCEPTO: "Fecha Reporte", VALOR: new Date().toLocaleString('es-CO') }
+        ];
+        const hojaResumen = XLSX.utils.json_to_sheet(resumenData);
+        XLSX.utils.book_append_sheet(workBook, hojaResumen, "RESUMEN");
+
+        // --- HOJA 2: DETALLE VENTAS ---
+        const datosVentas = ordenes.map(o => ({
+            Fecha: new Date(o.fecha).toLocaleString('es-CO'),
+            Cliente: o.cliente.nombre,
+            Tipo: o.tipo,
+            Metodo: o.cliente.metodoPago,
+            Items: o.items.map(i => `${i.cantidad}x ${i.nombre}`).join(', '),
+            Nota: o.items.map(i => i.nota).filter(Boolean).join(' | '), // Notas de cocina
+            Total: o.total
+        }));
+        const hojaVentas = XLSX.utils.json_to_sheet(datosVentas);
+        XLSX.utils.book_append_sheet(workBook, hojaVentas, "VENTAS");
+
+        // --- HOJA 3: DETALLE GASTOS ---
+        const datosGastos = gastos.map(g => ({
+            Fecha: new Date(g.fecha).toLocaleString('es-CO'),
+            Descripcion: g.descripcion,
+            Monto: g.monto,
+            // Usuario: g.usuario // Descomentar si agregas usuarios a los gastos
+        }));
+        const hojaGastos = XLSX.utils.json_to_sheet(datosGastos);
+        XLSX.utils.book_append_sheet(workBook, hojaGastos, "GASTOS");
+
+        // GENERAR Y ENVIAR ARCHIVO
+        const excelBuffer = XLSX.write(workBook, { bookType: 'xlsx', type: 'buffer' });
+        
+        res.setHeader('Content-Disposition', `attachment; filename=${tituloArchivo}.xlsx`);
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.send(excelBuffer);
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).send("Error generando reporte");
+    }
+});
+
 // --- FRONTEND ---
 app.use(express.static(path.join(__dirname, '../client/dist')));
 app.get(/.*/, (req, res) => res.sendFile(path.join(__dirname, '../client/dist/index.html')));
