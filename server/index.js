@@ -9,15 +9,15 @@ const jwt = require('jsonwebtoken');
 // Modelos
 const Order = require('./models/OrderModel');
 const Product = require('./models/ProductModel');
-const Cierre = require('./models/CierreModel'); // Nuevo
-const Gasto = require('./models/GastoModel');   // Nuevo
+const Cierre = require('./models/CierreModel');
+const Gasto = require('./models/GastoModel');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const SECRET_KEY = "YahnHongSecretKey2024"; // Llave secreta interna
 
-// TU URL DE MONGO (Manteniendo la de Yahn Hong)
-const MONGO_URI = "mongodb+srv://admin:admin123@cluster0.mcuxxcx.mongodb.net/yahnhong?retryWrites=true&w=majority&appName=Cluster0";
+// Configuración segura desde variables de entorno
+const SECRET_KEY = process.env.JWT_SECRET || "YahnHongSecretKey2024"; 
+const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://admin:admin123@cluster0.mcuxxcx.mongodb.net/yahnhong?retryWrites=true&w=majority&appName=Cluster0";
 
 mongoose.connect(MONGO_URI)
     .then(() => console.log('🟢 Yahn Hong DB Conectada'))
@@ -39,17 +39,18 @@ const verifyToken = (req, res, next) => {
     } catch (err) { return res.status(401).json({ message: "Token inválido" }); }
 };
 
-// --- LOGIN (Roles) ---
+// --- LOGIN (Roles con Variables de Entorno) ---
 app.post('/api/auth/login', (req, res) => {
     const { password } = req.body;
-    // Contraseñas hardcodeadas para el ejemplo
-    if (password === 'Yami1') { // Admin
+    
+    // Validamos contra las variables del archivo .env
+    if (password === process.env.ADMIN_PASSWORD) { // Admin
         const token = jwt.sign({ role: 'admin' }, SECRET_KEY, { expiresIn: '24h' });
         res.json({ token, role: 'admin' });
-    } else if (password === 'caja123') { // Cajero
+    } else if (password === process.env.CAJERO_PASSWORD) { // Cajero
         const token = jwt.sign({ role: 'cajero' }, SECRET_KEY, { expiresIn: '24h' });
         res.json({ token, role: 'cajero' });
-    } else if (password === 'pos123') { // Mesera/POS
+    } else if (password === process.env.POS_PASSWORD) { // Mesera/POS
         const token = jwt.sign({ role: 'mesera' }, SECRET_KEY, { expiresIn: '24h' });
         res.json({ token, role: 'mesera' });
     } else {
@@ -190,7 +191,7 @@ app.get('/api/ventas/excel/:id', verifyToken, async (req, res) => {
             Tipo: o.tipo,
             Metodo: o.cliente.metodoPago,
             Items: o.items.map(i => `${i.cantidad}x ${i.nombre}`).join(', '),
-            Nota: o.items.map(i => i.nota).filter(Boolean).join(' | '), // Notas de cocina
+            Nota: o.items.map(i => i.nota).filter(Boolean).join(' | '),
             Total: o.total
         }));
         const hojaVentas = XLSX.utils.json_to_sheet(datosVentas);
@@ -201,7 +202,7 @@ app.get('/api/ventas/excel/:id', verifyToken, async (req, res) => {
             Fecha: new Date(g.fecha).toLocaleString('es-CO'),
             Descripcion: g.descripcion,
             Monto: g.monto,
-            // Usuario: g.usuario // Descomentar si agregas usuarios a los gastos
+            Usuario: g.usuario
         }));
         const hojaGastos = XLSX.utils.json_to_sheet(datosGastos);
         XLSX.utils.book_append_sheet(workBook, hojaGastos, "GASTOS");
