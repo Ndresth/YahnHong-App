@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { useCart } from '../context/CartContext';
-import { swalBootstrap } from '../utils/swalConfig'; // Usamos las alertas bonitas
+import { swalBootstrap } from '../utils/swalConfig';
 
 export default function PosCartSidebar({ isOpen, onClose }) {
-  const { cart, removeFromCart, total, clearCart } = useCart();
+  const { cart, removeFromCart, total, clearCart, updateItemNote } = useCart();
   
-  // Estados para el tipo de servicio
-  const [tipoPedido, setTipoPedido] = useState('Mesa'); // 'Mesa' | 'Llevar'
-  const [identificador, setIdentificador] = useState(''); // Número de mesa o Nombre cliente
+  const [tipoPedido, setTipoPedido] = useState('Mesa'); 
+  const [identificador, setIdentificador] = useState(''); 
 
   const handleCobrar = async () => {
     if (!identificador.trim()) {
@@ -31,7 +30,7 @@ export default function PosCartSidebar({ isOpen, onClose }) {
 
     if (confirm.isConfirmed) {
         const nuevaOrden = {
-            tipo: tipoPedido, // 'Mesa' o 'Llevar'
+            tipo: tipoPedido,
             numeroMesa: tipoPedido === 'Mesa' ? identificador : null,
             cliente: { 
                 nombre: tipoPedido === 'Mesa' ? `Mesa ${identificador}` : identificador, 
@@ -43,7 +42,8 @@ export default function PosCartSidebar({ isOpen, onClose }) {
                 nombre: i.nombre, 
                 cantidad: i.quantity, 
                 precio: i.selectedPrice, 
-                tamaño: i.selectedSize 
+                tamaño: i.selectedSize,
+                nota: i.nota || '' // Enviamos la nota
             })),
             total: total
         };
@@ -66,12 +66,8 @@ export default function PosCartSidebar({ isOpen, onClose }) {
                 clearCart();
                 setIdentificador('');
                 onClose();
-            } else {
-                throw new Error();
-            }
-        } catch {
-            swalBootstrap.fire('Error', 'No se pudo enviar el pedido', 'error');
-        }
+            } else { throw new Error(); }
+        } catch { swalBootstrap.fire('Error', 'No se pudo enviar', 'error'); }
     }
   };
 
@@ -85,7 +81,6 @@ export default function PosCartSidebar({ isOpen, onClose }) {
         </div>
         
         <div className="offcanvas-body d-flex flex-column">
-          {/* LISTA DE PRODUCTOS */}
           <div className="flex-grow-1 overflow-auto mb-3">
             {cart.length === 0 ? (
                 <div className="text-center mt-5 text-muted d-flex flex-column align-items-center">
@@ -95,17 +90,25 @@ export default function PosCartSidebar({ isOpen, onClose }) {
             ) : (
               <div className="list-group list-group-flush">
                 {cart.map((item, index) => (
-                  <div key={index} className="list-group-item px-0 py-2">
-                    <div className="d-flex justify-content-between align-items-center">
-                      <div>
+                  <div key={index} className="list-group-item px-0 py-2 border-bottom">
+                    <div className="d-flex justify-content-between align-items-start mb-2">
+                      <div className="w-100 me-2">
                         <div className="fw-bold text-dark">{item.nombre}</div>
-                        <div className="text-muted small">
+                        <div className="text-muted small mb-1">
                             <span className="badge bg-light text-dark border me-1">{item.selectedSize}</span>
                             x{item.quantity}
                         </div>
+                        {/* INPUT DE NOTAS DE COCINA */}
+                        <input 
+                            type="text" 
+                            className="form-control form-control-sm bg-light border-0 text-secondary" 
+                            placeholder="Nota de cocina (opcional)..."
+                            value={item.nota || ''}
+                            onChange={(e) => updateItemNote(item.id, item.selectedSize, e.target.value)}
+                        />
                       </div>
-                      <div className="text-end">
-                          <span className="fw-bold d-block">${(item.selectedPrice * item.quantity).toLocaleString()}</span>
+                      <div className="text-end" style={{minWidth: '70px'}}>
+                          <span className="fw-bold d-block mb-1">${(item.selectedPrice * item.quantity).toLocaleString()}</span>
                           <button className="btn btn-sm text-danger p-0 border-0" onClick={() => removeFromCart(item.id, item.selectedSize)}>
                               <i className="bi bi-trash"></i>
                           </button>
@@ -117,10 +120,7 @@ export default function PosCartSidebar({ isOpen, onClose }) {
             )}
           </div>
 
-          {/* ZONA DE PAGO Y TIPO */}
           <div className="border-top pt-3 bg-light p-3 rounded shadow-sm">
-            
-            {/* SELECTOR TIPO */}
             <div className="btn-group w-100 mb-3" role="group">
                 <input type="radio" className="btn-check" name="btnradio" id="btnMesa" autoComplete="off" 
                     checked={tipoPedido === 'Mesa'} onChange={() => setTipoPedido('Mesa')} />
@@ -135,7 +135,6 @@ export default function PosCartSidebar({ isOpen, onClose }) {
                 </label>
             </div>
 
-            {/* INPUT DINÁMICO */}
             <div className="input-group mb-3">
                 <span className="input-group-text bg-white border-end-0">
                     <i className={`bi ${tipoPedido === 'Mesa' ? 'bi-hash' : 'bi-person-fill'}`}></i>

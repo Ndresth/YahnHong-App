@@ -19,10 +19,8 @@ export default function OrdersPanel() {
   }, []);
 
   const handleCompletar = (orden) => {
-    // 1. Imprimir
     printReceipt(orden.items, orden.total, orden.cliente, orden.tipo, orden.numeroMesa);
 
-    // 2. Completar en BD
     fetch(`/api/orders/${orden._id}`, { 
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -46,9 +44,9 @@ export default function OrdersPanel() {
       
       {ordenes.length === 0 ? (
         <div className="text-center mt-5 py-5 text-muted">
-            <i className="bi bi-cup-hot display-1 d-block mb-3 opacity-50"></i>
-            <h4>Todo tranquilo por ahora</h4>
-            <p>Esperando nuevas comandas...</p>
+            <i className="bi bi-check2-circle display-1 d-block mb-3 opacity-50"></i>
+            <h4>Todo en orden</h4>
+            <p>No hay comandas pendientes.</p>
         </div>
       ) : (
         <div className="row g-4">
@@ -69,11 +67,15 @@ export default function OrdersPanel() {
                             
                             <ul className="list-group list-group-flush mb-3">
                                 {orden.items.map((item, idx) => (
-                                    <li key={idx} className="list-group-item px-0 py-2 d-flex justify-content-between bg-transparent border-bottom-dashed">
+                                    <li key={idx} className="list-group-item px-0 py-2 bg-transparent border-bottom-dashed">
                                         <div style={{lineHeight: '1.2'}}>
                                             <span className="fw-bold fs-5 me-2">{item.cantidad}x</span> 
                                             {item.nombre}
-                                            <div className="text-muted small fst-italic ms-4">{item.tamaño}</div>
+                                            <div className="text-muted small fst-italic ms-4">
+                                                {item.tamaño}
+                                                {/* MOSTRAR NOTA SI EXISTE */}
+                                                {item.nota && <span className="d-block text-danger fw-bold mt-1"><i className="bi bi-exclamation-circle me-1"></i>{item.nota}</span>}
+                                            </div>
                                         </div>
                                     </li>
                                 ))}
