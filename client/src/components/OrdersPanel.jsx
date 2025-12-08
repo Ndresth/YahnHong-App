@@ -1,100 +1,91 @@
 import React, { useState, useEffect } from 'react';
 import { printReceipt } from '../utils/printReceipt';
+import toast from 'react-hot-toast';
 
 export default function OrdersPanel() {
   const [ordenes, setOrdenes] = useState([]);
 
   const cargarPedidos = () => {
-    // URL COMPLETA PARA LOCAL (Recuerda cambiar a /api/orders para Render)
     fetch('/api/orders') 
       .then(res => res.json())
       .then(data => setOrdenes(data))
       .catch(err => console.error(err));
   };
 
-  // Auto-refresco cada 5 segundos
   useEffect(() => {
     cargarPedidos();
     const intervalo = setInterval(cargarPedidos, 5000); 
     return () => clearInterval(intervalo);
   }, []);
 
-  // --- FUNCIÓN DE UN SOLO CLIC ---
-  const handleImprimirYCompletar = (orden) => {
-    // 1. Generar el recibo visual (Impresión)
-    const itemsAdaptados = orden.items.map(i => ({
-        nombre: i.nombre,
-        quantity: i.cantidad,
-        selectedSize: i.tamaño,
-        selectedPrice: i.precio
-    }));
-    
-    // Lanza la ventana de impresión
-    printReceipt(itemsAdaptados, orden.total, orden.cliente);
+  const handleCompletar = (orden) => {
+    // 1. Imprimir
+    printReceipt(orden.items, orden.total, orden.cliente, orden.tipo, orden.numeroMesa);
 
-    // 2. Marcar como completado en la Base de Datos INMEDIATAMENTE
-    // (Sin preguntar, para que desaparezca de la pantalla)
+    // 2. Completar en BD
     fetch(`/api/orders/${orden._id}`, { 
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ estado: 'Completado' }) // Le decimos explícitamente que ya acabó
+        body: JSON.stringify({ estado: 'Completado' })
     })
     .then(() => {
-        // 3. Recargamos la lista para que el pedido desaparezca visualmente
+        toast.success("Pedido despachado");
         cargarPedidos();
     })
-    .catch(err => console.error("Error al completar orden:", err));
+    .catch(() => toast.error("Error al completar"));
   };
 
   return (
     <div className="container py-5">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2 className="fw-bold text-danger">👨‍🍳 Cocina / Caja</h2>
-        <span className="badge bg-dark fs-6">Auto-actualizando...</span>
+      <div className="d-flex justify-content-between align-items-center mb-4 border-bottom pb-2">
+        <h2 className="fw-bold text-dark"><i className="bi bi-fire text-danger me-2"></i>Cocina en Vivo</h2>
+        <div className="text-muted small">
+            <i className="bi bi-clock-history me-1"></i> Actualizado: {new Date().toLocaleTimeString()}
+        </div>
       </div>
       
       {ordenes.length === 0 ? (
-        <div className="alert alert-secondary text-center py-5">
-            <h4>Todo despachado ✅</h4>
-            <p>Esperando nuevos pedidos...</p>
+        <div className="text-center mt-5 py-5 text-muted">
+            <i className="bi bi-cup-hot display-1 d-block mb-3 opacity-50"></i>
+            <h4>Todo tranquilo por ahora</h4>
+            <p>Esperando nuevas comandas...</p>
         </div>
       ) : (
-        <div className="row">
+        <div className="row g-4">
             {ordenes.map(orden => (
-                <div key={orden._id} className="col-md-6 col-lg-4 mb-4">
-                    <div className="card shadow border-danger h-100">
-                        <div className="card-header bg-danger text-white d-flex justify-content-between align-items-center">
-                            <span className="fw-bold fs-5">#{orden._id.slice(-4)}</span> {/* ID corto visual */}
-                            <span className="badge bg-warning text-dark">{new Date(orden.fecha).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                <div key={orden._id} className="col-md-6 col-lg-4 col-xl-3">
+                    <div className={`card h-100 shadow border-0 ${orden.tipo === 'Llevar' ? 'bg-warning-subtle' : ''}`}>
+                        <div className={`card-header fw-bold d-flex justify-content-between align-items-center ${orden.tipo === 'Llevar' ? 'bg-warning text-dark' : 'bg-dark text-white'}`}>
+                            <span>
+                                {orden.tipo === 'Llevar' ? <i className="bi bi-bag-fill me-2"></i> : <i className="bi bi-table me-2"></i>}
+                                {orden.tipo === 'Llevar' ? 'PARA LLEVAR' : `MESA ${orden.numeroMesa}`}
+                            </span>
+                            <span className="badge bg-white text-dark small">#{orden._id.slice(-4)}</span>
                         </div>
+                        
                         <div className="card-body">
-                            <h5 className="card-title fw-bold mb-0">{orden.cliente.nombre}</h5>
-                            <span className="badge bg-light text-dark border mb-2">{orden.cliente.metodoPago}</span>
-                            <p className="small text-muted mb-2">{orden.cliente.direccion}</p>
-                            <hr />
+                            <h5 className="card-title fw-bold mb-1">{orden.cliente.nombre}</h5>
+                            <small className="text-muted d-block mb-3"><i className="bi bi-clock me-1"></i>{new Date(orden.fecha).toLocaleTimeString()}</small>
+                            
                             <ul className="list-group list-group-flush mb-3">
                                 {orden.items.map((item, idx) => (
-                                    <li key={idx} className="list-group-item px-0 py-1 d-flex justify-content-between align-items-center">
-                                        <span style={{lineHeight: '1.2'}}>
-                                            <strong>{item.cantidad}x</strong> {item.nombre} 
-                                            <br/><small className="text-muted" style={{fontSize:'0.8em'}}>{item.tamaño}</small>
-                                        </span>
-                                        <span className="fw-bold">${(item.precio * item.cantidad).toLocaleString()}</span>
+                                    <li key={idx} className="list-group-item px-0 py-2 d-flex justify-content-between bg-transparent border-bottom-dashed">
+                                        <div style={{lineHeight: '1.2'}}>
+                                            <span className="fw-bold fs-5 me-2">{item.cantidad}x</span> 
+                                            {item.nombre}
+                                            <div className="text-muted small fst-italic ms-4">{item.tamaño}</div>
+                                        </div>
                                     </li>
                                 ))}
                             </ul>
-                            <div className="alert alert-secondary py-2 text-end mb-0">
-                                <span className="text-muted small me-2">Total:</span>
-                                <span className="fw-bold fs-4 text-dark">${orden.total.toLocaleString()}</span>
-                            </div>
                         </div>
-                        <div className="card-footer bg-white p-0">
+                        
+                        <div className="card-footer bg-transparent border-0 p-3">
                             <button 
-                                onClick={() => handleImprimirYCompletar(orden)}
-                                className="btn btn-dark w-100 fw-bold py-3 rounded-0 rounded-bottom"
-                                style={{letterSpacing: '1px'}}
+                                onClick={() => handleCompletar(orden)}
+                                className="btn btn-success w-100 fw-bold py-2 shadow-sm"
                             >
-                                <i className="bi bi-printer-fill me-2"></i> IMPRIMIR Y DESPACHAR
+                                <i className="bi bi-check-lg me-2"></i>DESPACHAR
                             </button>
                         </div>
                     </div>

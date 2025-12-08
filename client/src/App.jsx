@@ -1,31 +1,19 @@
-import { useState, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom'
-import { CartProvider, useCart } from './context/CartContext'
-import CartSidebar from './components/CartSidebar'
-import ProductSidebar from './components/ProductSidebar'
-import AdminDashboard from './components/AdminDashboard'
-import Login from './components/LoginT'
-import PosPage from './pages/PosPage'
-import OrdersPanel from './components/OrdersPanel' 
-import { Toaster } from 'react-hot-toast';
+import { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
+import { CartProvider, useCart } from './context/CartContext';
+import { Toaster } from 'react-hot-toast'; // USAR LIBRERÍA PROFESIONAL
+
+import CartSidebar from './components/CartSidebar';
+import ProductSidebar from './components/ProductSidebar';
+import AdminDashboard from './components/AdminDashboard';
+import Login from './components/LoginT';
+import PosPage from './pages/PosPage';
+import OrdersPanel from './components/OrdersPanel';
 
 // Seguridad
 const ProtectedRoute = ({ children }) => {
-  const isAdmin = localStorage.getItem('isAdmin') === 'true';
-  return isAdmin ? children : <Navigate to="/login" />;
-};
-
-const ToastNotification = ({ message, show, onClose }) => {
-  return (
-    <div className={`toast-container position-fixed bottom-0 end-0 p-3`} style={{zIndex: 2000}}>
-      <div className={`toast ${show ? 'show' : ''} align-items-center text-white bg-success border-0 shadow`}>
-        <div className="d-flex">
-          <div className="toast-body fs-6 fw-bold"><i className="bi bi-check-circle me-2"></i>{message}</div>
-          <button type="button" className="btn-close btn-close-white me-2 m-auto" onClick={onClose}></button>
-        </div>
-      </div>
-    </div>
-  );
+  const token = localStorage.getItem('token');
+  return token ? children : <Navigate to="/login" />;
 };
 
 function App() {
@@ -33,17 +21,22 @@ function App() {
     <CartProvider>
       <BrowserRouter>
         <MainLayout />
-        <Toaster position="bottom-right" toastOptions={{ duration: 3000 }} />
+        {/* CONFIGURACIÓN GLOBAL DE ALERTAS */}
+        <Toaster 
+            position="bottom-right"
+            toastOptions={{
+                duration: 3000,
+                style: { background: '#333', color: '#fff' },
+                success: { iconTheme: { primary: '#FFC107', secondary: '#333' } } // Amarillo Yahn Hong
+            }}
+        />
       </BrowserRouter>
     </CartProvider>
   )
 }
 
-// Componente que decide qué mostrar según la ruta
 function MainLayout() {
   const location = useLocation();
-  
-  // 2. AGREGAMOS '/cocina' AQUÍ PARA QUE NO SALGA EL NAVBAR DE CLIENTE
   const isSpecialPage = 
     location.pathname.startsWith('/pos') || 
     location.pathname.startsWith('/login') || 
@@ -52,16 +45,9 @@ function MainLayout() {
 
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [toast, setToast] = useState({ show: false, message: '' });
-
-  const showNotification = (msg) => {
-    setToast({ show: true, message: msg });
-    setTimeout(() => setToast({ show: false, message: '' }), 3000);
-  };
 
   return (
     <>
-      {/* Solo mostramos Navbar y Sidebar de CLIENTE si NO es página especial */}
       {!isSpecialPage && (
         <>
           <Navbar onOpenCart={() => setIsCartOpen(true)} />
@@ -71,17 +57,13 @@ function MainLayout() {
             product={selectedProduct} 
             isOpen={!!selectedProduct} 
             onClose={() => setSelectedProduct(null)} 
-            onNotify={showNotification}
           />
-          <ToastNotification show={toast.show} message={toast.message} onClose={() => setToast({...toast, show: false})} />
         </>
       )}
 
       <Routes>
         <Route path="/" element={<HomeContent onSelectProduct={setSelectedProduct} />} />
         <Route path="/login" element={<Login />} />
-        
-        {/* TODAS ESTAS RUTAS AHORA PIDEN CONTRASEÑA */}
         <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
         <Route path="/pos" element={<ProtectedRoute><PosPage /></ProtectedRoute>} />
         <Route path="/cocina" element={<ProtectedRoute><OrdersPanel /></ProtectedRoute>} />
@@ -105,26 +87,21 @@ function Navbar({ onOpenCart }) {
             <span className="brand-subtext">Comida China e Internacional</span>
           </div>
         </Link>
-        <button onClick={onOpenCart} className="btn btn-warning rounded-pill fw-bold shadow-sm d-flex align-items-center gap-2 px-3 border-0" style={{background: '#c62828', color: '#212121'}}>
+        <button onClick={onOpenCart} className="btn btn-warning rounded-pill fw-bold shadow-sm d-flex align-items-center gap-2 px-3 border-0" style={{background: '#c62828', color: '#fff'}}>
           <i className="bi bi-cart-fill"></i> <span className="d-none d-sm-inline">Tu Pedido</span>
-          {totalItems > 0 && (<span className="badge bg-dark text-white rounded-pill ms-1">{totalItems}</span>)}
+          {totalItems > 0 && (<span className="badge bg-warning text-dark rounded-pill ms-1">{totalItems}</span>)}
         </button>
       </div>
     </nav>
   );
 }
 
-// EXPORTAMOS ESTO PARA PODER USARLO EN PosPage.jsx
 export function HomeContent({ onSelectProduct }) {
   const [menu, setMenu] = useState([])
   const [filtro, setFiltro] = useState("Todos"); 
 
   useEffect(() => {
-    // Mantenemos tu URL local
-    fetch('/api/productos')
-      .then(res => res.json())
-      .then(data => setMenu(data))
-      .catch(err => console.error("Error:", err))
+    fetch('/api/productos').then(res => res.json()).then(setMenu).catch(console.error);
   }, [])
 
   const ordenCategorias = ["Todos", "Arroz Frito", "Chop Suey", "Espaguetes", "Agridulce", "Platos Especiales", "Comidas Corrientes", "Porciones", "Bebidas"];
@@ -134,9 +111,7 @@ export function HomeContent({ onSelectProduct }) {
     productosParaMostrar = [...menu].sort((a, b) => {
       const indexA = ordenCategorias.indexOf(a.categoria);
       const indexB = ordenCategorias.indexOf(b.categoria);
-      const posA = indexA === -1 ? 999 : indexA;
-      const posB = indexB === -1 ? 999 : indexB;
-      return posA - posB;
+      return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
     });
   } else {
     productosParaMostrar = menu.filter(p => p.categoria === filtro);
@@ -180,4 +155,4 @@ export function HomeContent({ onSelectProduct }) {
   )
 }
 
-export default App
+export default App;

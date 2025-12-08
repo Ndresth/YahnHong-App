@@ -5,7 +5,7 @@ const CartContext = createContext();
 export const CartProvider = ({ children }) => {
   const [cart, setCart] = useState([]);
 
-  // Agregar (Suma cantidades)
+  // Agregar (Suma cantidades si ya existe, resetea nota si es nuevo ingreso)
   const addToCart = (product, size, price, quantity = 1) => {
     setCart(prevCart => {
       const existingItem = prevCart.find(item => item.id === product.id && item.selectedSize === size);
@@ -16,17 +16,24 @@ export const CartProvider = ({ children }) => {
             : item
         );
       } else {
-        return [...prevCart, { ...product, selectedSize: size, selectedPrice: price, quantity: quantity }];
+        return [...prevCart, { ...product, selectedSize: size, selectedPrice: price, quantity: quantity, nota: '' }];
       }
     });
   };
 
-  // Eliminar un producto
+  // NUEVO: Función para editar notas de cocina
+  const updateItemNote = (productId, size, note) => {
+    setCart(prevCart => prevCart.map(item => 
+        (item.id === productId && item.selectedSize === size)
+          ? { ...item, nota: note }
+          : item
+    ));
+  };
+
   const removeFromCart = (productId, size) => {
     setCart(prevCart => prevCart.filter(item => !(item.id === productId && item.selectedSize === size)));
   };
 
-  // NUEVA FUNCIÓN: Vaciar todo el carrito
   const clearCart = () => {
     setCart([]);
   };
@@ -34,7 +41,7 @@ export const CartProvider = ({ children }) => {
   const total = cart.reduce((acc, item) => acc + (item.selectedPrice * item.quantity), 0);
 
   return (
-    <CartContext.Provider value={{ cart, addToCart, removeFromCart, clearCart, total }}>
+    <CartContext.Provider value={{ cart, addToCart, removeFromCart, clearCart, updateItemNote, total }}>
       {children}
     </CartContext.Provider>
   );

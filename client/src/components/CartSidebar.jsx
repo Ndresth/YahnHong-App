@@ -1,17 +1,10 @@
 import React, { useState } from 'react';
 import { useCart } from '../context/CartContext';
+import toast from 'react-hot-toast'; // ALERTA MODERNA
 
 export default function CartSidebar({ isOpen, onClose }) {
-  // Traemos la función clearCart
   const { cart, removeFromCart, total, clearCart } = useCart();
-  
-  const [cliente, setCliente] = useState({
-    nombre: '',
-    direccion: '',
-    telefono: '',
-    barrio: '',
-    metodoPago: 'Nequi'
-  });
+  const [cliente, setCliente] = useState({ nombre: '', direccion: '', telefono: '', barrio: '', metodoPago: 'Nequi' });
 
   const handleInputChange = (e) => {
     setCliente({ ...cliente, [e.target.name]: e.target.value });
@@ -19,11 +12,12 @@ export default function CartSidebar({ isOpen, onClose }) {
 
   const handleWhatsApp = () => {
     if (!cliente.nombre || !cliente.direccion || !cliente.telefono || !cliente.barrio) {
-      alert("Por favor completa todos tus datos");
+      toast.error("Por favor completa todos tus datos");
       return;
     }
 
     const ordenBD = {
+        tipo: 'Domicilio', // Importante para reportes
         cliente: {
             nombre: cliente.nombre,
             telefono: cliente.telefono,
@@ -34,30 +28,37 @@ export default function CartSidebar({ isOpen, onClose }) {
             nombre: i.nombre,
             cantidad: i.quantity,
             precio: i.selectedPrice,
-            tamaño: i.selectedSize
+            tamaño: i.selectedSize,
+            nota: i.nota || ''
         })),
         total: total
     };
 
-    // 1. GUARDAR EN BD (URL COMPLETA PARA LOCAL)
-    fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(ordenBD)
-    }).catch(err => console.error("Error guardando:", err));
+    // Feedback visual de carga
+    toast.promise(
+        fetch('/api/orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(ordenBD)
+        }),
+        {
+            loading: 'Registrando pedido...',
+            success: '¡Pedido registrado!',
+            error: 'Error al registrar'
+        }
+    );
 
-    // 2. WHATSAPP
     let mensaje = `*Hola Yahn Hong, quiero un pedido:*\n\n`;
     mensaje += `*Nombre:* ${cliente.nombre}\n*Tel:* ${cliente.telefono}\n*Dir:* ${cliente.direccion} - ${cliente.barrio}\n*Pago:* ${cliente.metodoPago}\n------------------\n`;
     cart.forEach(item => {
       mensaje += `- ${item.quantity}x ${item.nombre} (${item.selectedSize})\n`;
+      if(item.nota) mensaje += `  _Nota: ${item.nota}_\n`;
     });
     mensaje += `------------------\n*TOTAL: $${total.toLocaleString()}*`;
 
     const url = `https://wa.me/573022297929?text=${encodeURIComponent(mensaje)}`;
     window.open(url, '_blank');
 
-    // 3. VACIAR CARRITO Y CERRAR
     clearCart();
     onClose();
   };
@@ -83,6 +84,7 @@ export default function CartSidebar({ isOpen, onClose }) {
                       <div>
                         <div className="fw-bold text-danger">{item.nombre}</div>
                         <small className="text-muted">{item.selectedSize} | x{item.quantity}</small>
+                        {/* No mostramos input de nota aquí para no saturar al cliente, solo en POS */}
                       </div>
                       <div className="text-end">
                           <span className="fw-bold">${(item.selectedPrice * item.quantity).toLocaleString()}</span><br/>
