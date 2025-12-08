@@ -6,7 +6,8 @@ import ProductSidebar from './components/ProductSidebar'
 import AdminDashboard from './components/AdminDashboard'
 import Login from './components/LoginT'
 import PosPage from './pages/PosPage'
-import OrdersPanel from './components/OrdersPanel' // <--- 1. NUEVO IMPORT
+import OrdersPanel from './components/OrdersPanel' 
+import { Toaster } from 'react-hot-toast';
 
 // Seguridad
 const ProtectedRoute = ({ children }) => {
@@ -32,6 +33,7 @@ function App() {
     <CartProvider>
       <BrowserRouter>
         <MainLayout />
+        <Toaster position="bottom-right" toastOptions={{ duration: 3000 }} />
       </BrowserRouter>
     </CartProvider>
   )

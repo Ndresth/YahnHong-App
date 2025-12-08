@@ -1,155 +1,148 @@
 require('dotenv').config();
-
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const mongoose = require('mongoose');
 const XLSX = require('xlsx'); 
+const jwt = require('jsonwebtoken');
 
+// Modelos
 const Order = require('./models/OrderModel');
 const Product = require('./models/ProductModel');
+const Cierre = require('./models/CierreModel'); // Nuevo
+const Gasto = require('./models/GastoModel');   // Nuevo
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const SECRET_KEY = "YahnHongSecretKey2024"; // Llave secreta interna
 
-const MONGO_URI = process.env.MONGO_URI;
+// TU URL DE MONGO (Manteniendo la de Yahn Hong)
+const MONGO_URI = "mongodb+srv://admin:admin123@cluster0.mcuxxcx.mongodb.net/yahnhong?retryWrites=true&w=majority&appName=Cluster0";
 
 mongoose.connect(MONGO_URI)
-    .then(() => console.log('🟢 Servidor conectado a MongoDB Atlas'))
-    .catch(err => console.error('🔴 Error conectando a Mongo:', err));
+    .then(() => console.log('🟢 Yahn Hong DB Conectada'))
+    .catch(err => console.error('🔴 Error Mongo:', err));
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use('/images', express.static(path.join(__dirname, 'public/images')));
 
-// --- API PRODUCTOS ---
+// --- MIDDLEWARE DE SEGURIDAD ---
+const verifyToken = (req, res, next) => {
+    const token = req.headers['authorization'];
+    if (!token) return res.status(403).json({ message: "Token requerido" });
+    try {
+        const decoded = jwt.verify(token.split(" ")[1], SECRET_KEY);
+        req.user = decoded;
+        next();
+    } catch (err) { return res.status(401).json({ message: "Token inválido" }); }
+};
+
+// --- LOGIN (Roles) ---
+app.post('/api/auth/login', (req, res) => {
+    const { password } = req.body;
+    // Contraseñas hardcodeadas para el ejemplo
+    if (password === 'Yami1') { // Admin
+        const token = jwt.sign({ role: 'admin' }, SECRET_KEY, { expiresIn: '24h' });
+        res.json({ token, role: 'admin' });
+    } else if (password === 'caja123') { // Cajero
+        const token = jwt.sign({ role: 'cajero' }, SECRET_KEY, { expiresIn: '24h' });
+        res.json({ token, role: 'cajero' });
+    } else if (password === 'pos123') { // Mesera/POS
+        const token = jwt.sign({ role: 'mesera' }, SECRET_KEY, { expiresIn: '24h' });
+        res.json({ token, role: 'mesera' });
+    } else {
+        res.status(401).json({ message: "Credenciales incorrectas" });
+    }
+});
+
+// --- RUTAS PRODUCTOS ---
 app.get('/api/productos', async (req, res) => {
-    try {
-        const productos = await Product.find().sort({ id: 1 });
-        res.json(productos);
-    } catch (error) { res.status(500).json({ message: "Error", error }); }
+    const productos = await Product.find().sort({ id: 1 }); res.json(productos);
+});
+app.post('/api/productos', verifyToken, async (req, res) => {
+    const nuevo = new Product(req.body); await nuevo.save(); res.json(nuevo);
+});
+app.put('/api/productos/:id', verifyToken, async (req, res) => {
+    await Product.findOneAndUpdate({ id: req.params.id }, req.body); res.json({msg:'ok'});
+});
+app.delete('/api/productos/:id', verifyToken, async (req, res) => {
+    await Product.findOneAndDelete({ id: req.params.id }); res.json({msg:'ok'});
 });
 
-app.post('/api/productos', async (req, res) => {
-    try {
-        const nuevoProducto = new Product(req.body);
-        await nuevoProducto.save();
-        res.status(201).json(nuevoProducto);
-    } catch (error) { res.status(400).json({ message: error.message }); }
-});
-
-app.put('/api/productos/:id', async (req, res) => {
-    try {
-        const actualizado = await Product.findOneAndUpdate({ id: req.params.id }, req.body, { new: true });
-        res.json(actualizado);
-    } catch (error) { res.status(400).json({ message: error.message }); }
-});
-
-app.delete('/api/productos/:id', async (req, res) => {
-    try {
-        await Product.findOneAndDelete({ id: req.params.id });
-        res.json({ message: 'Producto eliminado' });
-    } catch (error) { res.status(500).json({ message: error.message }); }
-});
-
-// --- API PEDIDOS ---
+// --- RUTAS PEDIDOS ---
 app.post('/api/orders', async (req, res) => {
-    try {
-        const nuevaOrden = new Order(req.body);
-        await nuevaOrden.save();
-        res.status(201).json(nuevaOrden);
-    } catch (error) { res.status(400).json({ message: "Error al guardar", error }); }
+    const nueva = new Order(req.body); await nueva.save(); res.json(nueva);
 });
-
 app.get('/api/orders', async (req, res) => {
-    try {
-        const ordenes = await Order.find({ estado: 'Pendiente' }).sort({ fecha: -1 });
-        res.json(ordenes);
-    } catch (error) { res.status(500).json({ message: "Error al leer", error }); }
+    // Solo trae las pendientes y que NO estén cerradas
+    const ordenes = await Order.find({ estado: 'Pendiente', cierre_id: null }).sort({ fecha: -1 });
+    res.json(ordenes);
 });
-
 app.put('/api/orders/:id', async (req, res) => {
-    try {
-        await Order.findByIdAndUpdate(req.params.id, { estado: 'Completado' });
-        res.json({ message: 'Orden completada' });
-    } catch (error) { res.status(500).json({ message: "Error", error }); }
+    await Order.findByIdAndUpdate(req.params.id, req.body); res.json({msg:'ok'});
 });
 
-// --- ZONA FINANCIERA ---
+// --- GASTOS ---
+app.post('/api/gastos', verifyToken, async (req, res) => {
+    const nuevo = new Gasto(req.body); await nuevo.save(); res.json(nuevo);
+});
+app.get('/api/gastos/hoy', async (req, res) => {
+    const gastos = await Gasto.find({ cierre_id: null }).sort({ fecha: -1 }); res.json(gastos);
+});
+app.delete('/api/gastos/:id', verifyToken, async (req, res) => {
+    await Gasto.findByIdAndDelete(req.params.id); res.json({message: 'Eliminado'});
+});
 
-// 1. VER VENTAS HOY
+// --- FINANZAS Y CIERRE DE CAJA ---
 app.get('/api/ventas/hoy', async (req, res) => {
-    try {
-        const ordenes = await Order.find({});
-        const totalVentas = ordenes.reduce((acc, orden) => acc + orden.total, 0);
-        
-        res.json({ total: totalVentas, cantidadPedidos: ordenes.length });
-    } catch (error) {
-        res.status(500).json({ message: "Error calculando ventas", error });
-    }
+    const ordenes = await Order.find({ cierre_id: null });
+    const totalVentas = ordenes.reduce((acc, o) => acc + o.total, 0);
+    const gastos = await Gasto.find({ cierre_id: null });
+    const totalGastos = gastos.reduce((acc, g) => acc + g.monto, 0);
+    res.json({ totalVentas, totalGastos, totalCaja: totalVentas - totalGastos, cantidadPedidos: ordenes.length });
 });
 
-// 2. DESCARGAR EXCEL (CORREGIDO: Incluye tamaño)
-app.get('/api/ventas/excel', async (req, res) => {
+app.post('/api/ventas/cerrar', verifyToken, async (req, res) => {
     try {
-        const ordenes = await Order.find().lean();
+        const { efectivoReal } = req.body;
+        const ordenes = await Order.find({ cierre_id: null });
+        const gastos = await Gasto.find({ cierre_id: null });
 
-        // Calcular el Gran Total
-        const granTotal = ordenes.reduce((acc, o) => acc + o.total, 0);
+        if (ordenes.length === 0 && gastos.length === 0) return res.status(400).json({ message: "Nada para cerrar" });
 
-        const datosExcel = ordenes.map(o => ({
-            Fecha: new Date(o.fecha).toLocaleString('es-CO'),
-            Cliente: o.cliente.nombre,
-            MetodoPago: o.cliente.metodoPago,
-            // --- CORRECCIÓN AQUÍ: Agregamos el tamaño al nombre ---
-            Productos: o.items.map(i => `${i.cantidad}x ${i.nombre} ${i.tamaño && i.tamaño !== 'unico' ? `(${i.tamaño})` : ''}`).join(', '),
-            // -----------------------------------------------------
-            Total: o.total
-        }));
+        const totalVentas = ordenes.reduce((acc, o) => acc + o.total, 0);
+        const totalGastos = gastos.reduce((acc, g) => acc + g.monto, 0);
+        const teorico = totalVentas - totalGastos;
 
-        // --- FILA DE TOTAL AL FINAL ---
-        datosExcel.push({
-            Fecha: '',
-            Cliente: '--- TOTAL CIERRE ---',
-            MetodoPago: '',
-            Productos: '',
-            Total: granTotal
+        const cierre = new Cierre({
+            fechaInicio: new Date(), 
+            totalVentasSistema: totalVentas,
+            totalGastos: totalGastos,
+            totalCajaTeorico: teorico,
+            totalEfectivoReal: Number(efectivoReal),
+            diferencia: Number(efectivoReal) - teorico,
+            cantidadPedidos: ordenes.length,
+            usuario: "Admin"
         });
+        const guardado = await cierre.save();
 
-        const workSheet = XLSX.utils.json_to_sheet(datosExcel);
-        const workBook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workBook, workSheet, "Ventas");
+        // Marcar ordenes y gastos como cerrados
+        await Order.updateMany({ cierre_id: null }, { $set: { cierre_id: guardado._id } });
+        await Gasto.updateMany({ cierre_id: null }, { $set: { cierre_id: guardado._id } });
 
-        const excelBuffer = XLSX.write(workBook, { bookType: 'xlsx', type: 'buffer' });
-
-        res.setHeader('Content-Disposition', 'attachment; filename=Cierre_Caja.xlsx');
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.send(excelBuffer);
-
-    } catch (error) {
-        res.status(500).send("Error generando Excel");
-    }
+        res.json({ message: "Cierre exitoso", reporte: guardado });
+    } catch (e) { res.status(500).json({ message: "Error interno" }); }
 });
 
-// 3. CERRAR CAJA
-app.delete('/api/ventas/cerrar', async (req, res) => {
-    try {
-        console.log("Borrando base de datos de pedidos...");
-        await Order.deleteMany({}); 
-        console.log("Base de datos limpia.");
-        res.json({ message: "Caja cerrada correctamente" });
-    } catch (error) {
-        res.status(500).json({ message: "Error cerrando caja", error });
-    }
+app.get('/api/cierres', verifyToken, async (req, res) => {
+    const cierres = await Cierre.find().sort({ fechaFin: -1 }).limit(30);
+    res.json(cierres);
 });
 
 // --- FRONTEND ---
 app.use(express.static(path.join(__dirname, '../client/dist')));
-app.get(/.*/, (req, res) => {
-  res.sendFile(path.join(__dirname, '../client/dist/index.html'));
-});
+app.get(/.*/, (req, res) => res.sendFile(path.join(__dirname, '../client/dist/index.html')));
 
-app.listen(PORT, () => {
-    console.log(`--- SERVIDOR CORRIENDO EN PUERTO ${PORT} ---`);
-});
+app.listen(PORT, () => console.log(`[YAHN HONG] Server en puerto ${PORT}`));

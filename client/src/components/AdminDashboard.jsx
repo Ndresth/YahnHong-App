@@ -1,220 +1,152 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast'; 
+import { swalBootstrap } from '../utils/swalConfig'; 
 import ProductForm from './ProductForm';
+import Reportes from './Reportes'; // (Crearemos este archivo abajo)
 
 export default function AdminDashboard() {
   const [productos, setProductos] = useState([]);
-  const [ventas, setVentas] = useState({ total: 0, cantidadPedidos: 0 });
+  const [finanzas, setFinanzas] = useState({ totalVentas: 0, totalGastos: 0, totalCaja: 0, cantidadPedidos: 0 });
+  const [gastos, setGastos] = useState([]);
+  const [nuevoGasto, setNuevoGasto] = useState({ descripcion: '', monto: '' });
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
-  
-  // NUEVO ESTADO: Para bloquear el botón de borrar hasta que descarguen
-  const [descargaConfirmada, setDescargaConfirmada] = useState(false);
-  const [cargandoExcel, setCargandoExcel] = useState(false);
-  
+  const [vista, setVista] = useState('dashboard'); 
+
   const navigate = useNavigate();
+  const getToken = () => localStorage.getItem('token');
+  const isAdmin = localStorage.getItem('role') === 'admin'; 
 
-  const handleLogout = () => {
-    localStorage.removeItem('isAdmin');
-    navigate('/login');
+  const handleLogout = async () => {
+    const result = await swalBootstrap.fire({ title: '¿Cerrar Sesión?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Salir' });
+    if(result.isConfirmed) { localStorage.clear(); navigate('/login'); }
   };
 
-  const fetchProductos = () => {
-    fetch('/api/productos')
-      .then(res => res.json())
-      .then(data => setProductos(data))
-      .catch(err => console.error(err));
-  };
-
-  const fetchVentas = () => {
-    fetch('/api/ventas/hoy')
-      .then(res => res.json())
-      .then(data => setVentas(data))
-      .catch(err => console.error(err));
-  };
-
-  useEffect(() => {
-    fetchProductos();
-    fetchVentas();
-    const interval = setInterval(fetchVentas, 10000);
-    return () => clearInterval(interval);
+  const cargarDatos = useCallback(() => {
+    fetch('/api/productos').then(res => res.json()).then(setProductos);
+    fetch('/api/ventas/hoy').then(res => res.json()).then(setFinanzas);
+    fetch('/api/gastos/hoy').then(res => res.json()).then(setGastos);
   }, []);
 
-  // --- PASO 1: DESCARGAR EXCEL DE FORMA SEGURA ---
-  const handleDescargarExcel = async () => {
-    setCargandoExcel(true);
-    try {
-        const response = await fetch('/api/ventas/excel');
-        
-        if (response.ok) {
-            // Convertimos la respuesta en un archivo descargable (Blob)
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `Cierre_Caja_${new Date().toLocaleDateString('es-CO').replace(/\//g, '-')}.xlsx`;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            
-            // ¡ÉXITO! Habilitamos el botón de borrar
-            setDescargaConfirmada(true);
-            alert("✅ Excel descargado correctamente. Ahora puedes cerrar la caja.");
-        } else {
-            alert("Error al generar el Excel. Intenta de nuevo.");
-        }
-    } catch (error) {
-        console.error(error);
-        alert("Error de conexión al descargar.");
-    } finally {
-        setCargandoExcel(false);
-    }
+  useEffect(() => { cargarDatos(); const interval = setInterval(cargarDatos, 10000); return () => clearInterval(interval); }, [cargarDatos]);
+
+  const handleRegistrarGasto = async (e) => {
+      e.preventDefault();
+      if (!nuevoGasto.descripcion || !nuevoGasto.monto) return toast.error("Datos incompletos");
+      await fetch('/api/gastos', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` }, body: JSON.stringify(nuevoGasto) });
+      setNuevoGasto({ descripcion: '', monto: '' }); cargarDatos(); toast.success("Gasto registrado");
   };
 
-  // --- PASO 2: BORRAR DATOS (Solo si ya descargó) ---
-  const handleReiniciarCaja = async () => {
-    if (!window.confirm("⚠️ ¿ESTÁS SEGURO?\n\nSe borrarán TODOS los pedidos de la base de datos y el contador volverá a $0.\n\nEsta acción no se puede deshacer.")) {
-        return;
-    }
-
-    try {
-        const res = await fetch('/api/ventas/cerrar', { method: 'DELETE' });
-        if (res.ok) {
-            alert("✅ ¡Caja reiniciada con éxito!");
-            setVentas({ total: 0, cantidadPedidos: 0 }); // Reinicio visual inmediato
-            setDescargaConfirmada(false); // Bloqueamos el botón de nuevo para mañana
-        } else {
-            alert("Hubo un problema al intentar borrar la base de datos.");
-        }
-    } catch (error) {
-        console.error(error);
-        alert("Error de conexión al reiniciar caja.");
-    }
+  const handleBorrarGasto = async (id) => {
+      if((await swalBootstrap.fire({ title: '¿Borrar gasto?', icon: 'warning', showCancelButton: true })).isConfirmed) {
+          await fetch(`/api/gastos/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${getToken()}` } }); cargarDatos();
+      }
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm('¿Eliminar plato?')) {
-      fetch(`/api/productos/${id}`, { method: 'DELETE' })
-      .then(() => { alert('Eliminado'); fetchProductos(); });
-    }
+  const handleCerrarCaja = async () => {
+    const { value: inputEfectivo } = await swalBootstrap.fire({ title: 'Arqueo de Caja', input: 'text', inputLabel: 'Efectivo en caja:', inputPlaceholder: 'Ej: 150000', showCancelButton: true, confirmButtonText: 'Cerrar Turno' });
+    if (!inputEfectivo) return;
+
+    toast.promise(fetch('/api/ventas/cerrar', { 
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` }, 
+        body: JSON.stringify({ efectivoReal: inputEfectivo }) 
+    }).then(async res => {
+        const data = await res.json();
+        swalBootstrap.fire({ title: 'Turno Cerrado', text: `Diferencia: $${data.reporte.diferencia.toLocaleString()}`, icon: data.reporte.diferencia === 0 ? 'success' : 'warning' });
+        cargarDatos();
+    }), { loading: 'Cerrando...', success: 'Listo', error: 'Error' });
   };
 
-  const handleSave = (formData) => {
+  const handleDelete = async (id) => { 
+      if((await swalBootstrap.fire({ title: '¿Eliminar plato?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#dc3545' })).isConfirmed) {
+          await fetch(`/api/productos/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${getToken()}` } }); cargarDatos();
+      }
+  };
+  
+  const handleSave = (formData) => { 
     const method = editingProduct ? 'PUT' : 'POST';
-    const url = editingProduct 
-        ? `/api/productos/${formData.id}`
-        : '/api/productos';
-
-    fetch(url, {
-        method: method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-    }).then(() => {
-        setShowForm(false);
-        fetchProductos();
-    });
+    const url = editingProduct ? `/api/productos/${formData.id}` : '/api/productos';
+    fetch(url, { method, headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` }, body: JSON.stringify(formData) })
+    .then(() => { setShowForm(false); cargarDatos(); toast.success("Guardado"); });
   };
 
   return (
     <div className="container py-5">
-      
       <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2 className="fw-bold text-dark">Panel Administrativo</h2>
-        <button className="btn btn-danger" onClick={handleLogout}>Salir</button>
+        <h2 className="fw-bold text-dark">Panel Yahn Hong</h2>
+        <div className="d-flex gap-2">
+            <button className={`btn ${vista === 'dashboard' ? 'btn-dark' : 'btn-outline-dark'}`} onClick={() => setVista('dashboard')}>Control</button>
+            {isAdmin && <button className={`btn ${vista === 'reportes' ? 'btn-dark' : 'btn-outline-dark'}`} onClick={() => setVista('reportes')}>Reportes</button>}
+            <button className="btn btn-danger" onClick={handleLogout}>Salir</button>
+        </div>
       </div>
 
-      {/* ZONA FINANCIERA MEJORADA */}
-      <div className="row mb-5">
-        <div className="col-md-12">
-            <div className="card bg-dark text-white shadow">
-                <div className="card-body p-4">
-                    <div className="row align-items-center">
-                        {/* Columna de Totales */}
-                        <div className="col-md-6 mb-3 mb-md-0">
-                            <h5 className="text-white-50 mb-1">Ventas Acumuladas ({ventas.cantidadPedidos} pedidos)</h5>
-                            <h1 className="display-4 fw-bold text-warning mb-0">${ventas.total.toLocaleString()}</h1>
-                        </div>
-
-                        {/* Columna de Botones (Flujo de 2 Pasos) */}
-                        <div className="col-md-6 text-end">
-                            <div className="d-flex gap-2 justify-content-md-end flex-column flex-md-row">
-                                
-                                {/* PASO 1 */}
-                                <button 
-                                    onClick={handleDescargarExcel} 
-                                    className="btn btn-primary fw-bold py-2"
-                                    disabled={cargandoExcel}
-                                >
-                                    {cargandoExcel ? 'Generando...' : '1. Descargar Reporte 📥'}
-                                </button>
-
-                                {/* PASO 2 (Deshabilitado hasta que descargues) */}
-                                <button 
-                                    onClick={handleReiniciarCaja} 
-                                    className={`btn fw-bold py-2 ${descargaConfirmada ? 'btn-danger' : 'btn-secondary'}`}
-                                    disabled={!descargaConfirmada}
-                                    title={!descargaConfirmada ? "Debes descargar el Excel primero" : "Borrar datos del día"}
-                                >
-                                    2. Reiniciar Caja 🗑️
-                                </button>
-                            </div>
-                            <div className="text-white-50 small mt-2">
-                                {descargaConfirmada 
-                                    ? "✅ Reporte guardado. Ya puedes reiniciar la caja." 
-                                    : "⚠️ Por seguridad, descarga el reporte antes de borrar."}
+      {vista === 'reportes' && isAdmin ? <Reportes /> : (
+          <>
+            <div className="row mb-4">
+                <div className="col-md-7 mb-3">
+                    <div className="card bg-dark text-white shadow h-100 border-0">
+                        <div className="card-body p-4">
+                            <div className="d-flex justify-content-between mb-2"><span className="text-success fw-bold">Ventas:</span><span className="text-success fw-bold">${finanzas.totalVentas?.toLocaleString()}</span></div>
+                            <div className="d-flex justify-content-between mb-3 border-bottom border-secondary pb-2"><span className="text-danger fw-bold">Gastos:</span><span className="text-danger fw-bold">${finanzas.totalGastos?.toLocaleString()}</span></div>
+                            <div className="d-flex justify-content-between align-items-end">
+                                <div><h5 className="text-white-50 mb-0">En Caja:</h5><h1 className="display-4 fw-bold text-warning mb-0">${finanzas.totalCaja?.toLocaleString()}</h1></div>
+                                <button onClick={handleCerrarCaja} className="btn btn-warning fw-bold py-2 px-4 shadow">ARQUEO DE CAJA</button>
                             </div>
                         </div>
                     </div>
                 </div>
+                <div className="col-md-5 mb-3">
+                    <div className="card shadow h-100 border-danger">
+                        <div className="card-header bg-danger text-white fw-bold">Registrar Gasto</div>
+                        <div className="card-body">
+                            <form onSubmit={handleRegistrarGasto} className="d-flex gap-2 mb-3">
+                                <input type="text" className="form-control" placeholder="Concepto" value={nuevoGasto.descripcion} onChange={e => setNuevoGasto({...nuevoGasto, descripcion: e.target.value})} />
+                                <input type="number" className="form-control" placeholder="$" style={{width:'100px'}} value={nuevoGasto.monto} onChange={e => setNuevoGasto({...nuevoGasto, monto: e.target.value})} />
+                                <button type="submit" className="btn btn-outline-danger">+</button>
+                            </form>
+                            <ul className="list-group list-group-flush small overflow-auto" style={{maxHeight: '150px'}}>
+                                {gastos.map(g => (
+                                    <li key={g._id} className="list-group-item d-flex justify-content-between px-0 py-1">
+                                        <span>{g.descripcion}</span><span><span className="text-danger me-2">-${g.monto.toLocaleString()}</span><i className="bi bi-trash text-muted" style={{cursor:'pointer'}} onClick={() => handleBorrarGasto(g._id)}></i></span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
             </div>
-        </div>
-      </div>
 
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h4>Gestión de Menú</h4>
-        <button className="btn btn-success fw-bold" onClick={() => { setEditingProduct(null); setShowForm(true); }}>+ Nuevo Plato</button>
-      </div>
-
-      <div className="card shadow-sm border-0">
-        <div className="card-body p-0">
-          <div className="table-responsive">
-            <table className="table table-hover align-middle mb-0">
-              <thead className="bg-light">
-                <tr>
-                  <th className="p-3">Imagen</th>
-                  <th>Nombre</th>
-                  <th>Categoría</th>
-                  <th>Precio</th>
-                  <th className="text-end p-3">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {productos.map((prod) => (
-                  <tr key={prod.id}>
-                    <td className="p-3">
-                      <img src={prod.imagen || "https://via.placeholder.com/50"} alt="img" className="rounded" style={{width: '50px', height: '50px', objectFit: 'cover'}} />
-                    </td>
-                    <td className="fw-bold">{prod.nombre}</td>
-                    <td><span className="badge bg-secondary text-light">{prod.categoria}</span></td>
-                    <td>${prod.precios ? Object.values(prod.precios).find(p => p > 0)?.toLocaleString() : '0'}</td>
-                    <td className="text-end p-3">
-                      <button className="btn btn-sm btn-outline-primary me-2" onClick={() => { setEditingProduct(prod); setShowForm(true); }}>Editar</button>
-                      <button className="btn btn-sm btn-outline-danger" onClick={() => handleDelete(prod.id)}>Eliminar</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      {showForm && (
-        <ProductForm 
-            productToEdit={editingProduct} 
-            onClose={() => setShowForm(false)} 
-            onSave={handleSave} 
-        />
+            <div className="d-flex justify-content-between align-items-center mb-3 mt-5">
+                <h4 className="fw-bold">Menú</h4>
+                <button className="btn btn-success fw-bold" onClick={() => { setEditingProduct(null); setShowForm(true); }}>+ Nuevo Plato</button>
+            </div>
+            {/* TABLA DE PRODUCTOS (IGUAL A LA QUE TENÍAS PERO CON ESTILO) */}
+            <div className="card shadow-sm border-0">
+                <div className="card-body p-0">
+                    <div className="table-responsive">
+                        <table className="table table-hover align-middle mb-0">
+                            <thead className="bg-light"><tr><th className="p-3">Img</th><th>Nombre</th><th>Precio Base</th><th className="text-end p-3">Acciones</th></tr></thead>
+                            <tbody>
+                                {productos.map((prod) => (
+                                <tr key={prod.id}>
+                                    <td className="p-3"><img src={prod.imagen} alt="img" className="rounded" style={{width: '40px', height:'40px', objectFit:'cover'}} /></td>
+                                    <td className="fw-bold">{prod.nombre}</td>
+                                    <td>${prod.precios ? Object.values(prod.precios).find(p => p > 0)?.toLocaleString() : '0'}</td>
+                                    <td className="text-end p-3">
+                                        <button className="btn btn-sm btn-outline-primary me-2" onClick={() => { setEditingProduct(prod); setShowForm(true); }}>Editar</button>
+                                        <button className="btn btn-sm btn-outline-danger" onClick={() => handleDelete(prod.id)}>Borrar</button>
+                                    </td>
+                                </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {showForm && <ProductForm productToEdit={editingProduct} onClose={() => setShowForm(false)} onSave={handleSave} />}
+          </>
       )}
     </div>
   );
