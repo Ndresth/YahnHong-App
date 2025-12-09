@@ -11,7 +11,7 @@ export default function Reportes() {
     .then(data => {
         const formattedData = data.map(item => ({
             ...item,
-            // Fecha corta para el EJE X (ej: "lun 12")
+            // Etiqueta corta para el eje X (ej: "lun 12")
             fechaCorta: new Date(item.fechaFin).toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric' })
         })).reverse();
         setCierres(formattedData);
@@ -49,13 +49,21 @@ export default function Reportes() {
                     <XAxis dataKey="fechaCorta" />
                     <YAxis />
                     
-                    {/* TOOLTIP PERSONALIZADO */}
+                    {/* TOOLTIP CORREGIDO Y MEJORADO */}
                     <Tooltip 
-                        cursor={{fill: '#f0f0f0'}}
-                        formatter={(value) => [`$${value.toLocaleString()}`, 'Ventas Totales']}
+                        cursor={{fill: '#f8f9fa'}} // Color suave al pasar el mouse por la barra
+                        wrapperStyle={{ zIndex: 1000 }} // Asegura que se vea encima de todo
+                        contentStyle={{ 
+                            backgroundColor: '#fff', 
+                            borderRadius: '8px', 
+                            border: '1px solid #dee2e6',
+                            boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                            color: '#333'
+                        }}
+                        formatter={(value) => [`$${value.toLocaleString()}`, 'Venta Total']}
                         labelFormatter={(label, payload) => {
+                            // Lógica para mostrar la fecha completa y hora
                             if (payload && payload.length > 0) {
-                                // Aquí accedemos a la fecha real completa del objeto de datos
                                 const dataOriginal = payload[0].payload;
                                 return new Date(dataOriginal.fechaFin).toLocaleDateString('es-CO', { 
                                     weekday: 'long', 

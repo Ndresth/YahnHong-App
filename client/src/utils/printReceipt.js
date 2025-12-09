@@ -6,18 +6,24 @@ export const printReceipt = (cart, total, client, type = 'cliente', ordenInfo = 
     const receiptWindow = window.open('', '', 'width=360,height=600');
     const date = new Date().toLocaleString('es-CO');
     
-    // --- ESTILOS ---
+    // --- ESTILOS OPTIMIZADOS PARA POS ---
     const styles = `
         <style>
-            @page { margin: 0; }
+            /* Configuración crítica para impresoras térmicas */
+            @page { 
+                size: auto;   /* auto is the initial value */
+                margin: 0mm;  /* this affects the margin in the printer settings */
+            }
+
             body { 
                 font-family: 'Courier New', monospace; 
-                margin: 0; 
-                padding: 10px; 
+                margin: 5mm; /* Margen interno de seguridad para el contenido */
+                padding: 0; 
                 color: #000;
                 width: 100%;
-                max-width: 300px;
+                max-width: 300px; /* Ancho típico para 80mm, ajustar a 58mm si es necesario (aprox 180px) */
             }
+
             .text-center { text-align: center; }
             .text-right { text-align: right; }
             .fw-bold { font-weight: bold; }
@@ -86,7 +92,7 @@ export const printReceipt = (cart, total, client, type = 'cliente', ordenInfo = 
         ` : ''}
         
         <div class="text-center fs-sm" style="margin-top: 20px;">Gracias por su compra.</div>
-    `;
+        <br/><br/>. `;
 
     // --- PLANTILLA COCINA (COMANDA) ---
     const kitchenTemplate = `
@@ -120,7 +126,7 @@ export const printReceipt = (cart, total, client, type = 'cliente', ordenInfo = 
         </div>
         
         <div class="text-center fw-bold fs-lg" style="margin-top: 20px; border-top: 3px double #000;">FIN COMANDA</div>
-    `;
+        <br/><br/>. `;
 
     const bodyContent = type === 'cocina' ? kitchenTemplate : customerTemplate;
     const html = `<html><head><title>Imprimir</title>${styles}</head><body>${bodyContent}</body></html>`;
@@ -128,5 +134,11 @@ export const printReceipt = (cart, total, client, type = 'cliente', ordenInfo = 
     receiptWindow.document.write(html);
     receiptWindow.document.close();
     
-    setTimeout(() => { receiptWindow.focus(); receiptWindow.print(); }, 500);
+    // Esperamos un poco más para asegurar que los estilos carguen antes de imprimir
+    setTimeout(() => { 
+        receiptWindow.focus(); 
+        receiptWindow.print(); 
+        // Opcional: cerrar ventana después de imprimir (algunos navegadores bloquean esto si no es acción directa)
+        // receiptWindow.close(); 
+    }, 500);
 };
