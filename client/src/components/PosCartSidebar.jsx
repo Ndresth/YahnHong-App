@@ -1,41 +1,39 @@
 import React, { useState } from 'react';
 import { useCart } from '../context/CartContext';
-import { swalBootstrap } from '../utils/swalConfig';
+import toast from 'react-hot-toast'; // IMPORTAR TOAST
+import { swalBootstrap } from '../utils/swalConfig'; // IMPORTAR SWEETALERT
 
 export default function PosCartSidebar({ isOpen, onClose }) {
   const { cart, removeFromCart, total, clearCart, updateItemNote } = useCart();
-  
-  const [tipoPedido, setTipoPedido] = useState('Mesa'); 
-  const [identificador, setIdentificador] = useState(''); 
+  const [esParaLlevar, setEsParaLlevar] = useState(false);
+  const [mesa, setMesa] = useState(''); 
 
+  // ASYNC para poder usar SweetAlert
   const handleCobrar = async () => {
-    if (!identificador.trim()) {
-        return swalBootstrap.fire({
-            title: 'Faltan datos',
-            text: tipoPedido === 'Mesa' ? 'Ingresa el número de mesa' : 'Ingresa el nombre del cliente',
-            icon: 'warning',
-            timer: 2000,
-            showConfirmButton: false
-        });
+    if (!esParaLlevar && !mesa) {
+        // REEMPLAZO ALERT
+        toast.error("Error: Debe asignar un número de mesa o marcar para llevar.");
+        return;
     }
 
-    const confirm = await swalBootstrap.fire({
+    // REEMPLAZO WINDOW.CONFIRM
+    const result = await swalBootstrap.fire({
         title: '¿Confirmar Pedido?',
-        text: `Total: $${total.toLocaleString()} - ${tipoPedido}: ${identificador}`,
+        text: "Se enviará la comanda a producción.",
         icon: 'question',
         showCancelButton: true,
-        confirmButtonText: 'Enviar a Cocina',
+        confirmButtonText: 'Sí, Enviar Comanda',
         cancelButtonText: 'Cancelar'
     });
 
-    if (confirm.isConfirmed) {
+    if(result.isConfirmed) {
         const nuevaOrden = {
-            tipo: tipoPedido,
-            numeroMesa: tipoPedido === 'Mesa' ? identificador : null,
+            tipo: esParaLlevar ? 'Llevar' : 'Mesa',
+            numeroMesa: esParaLlevar ? null : mesa,
             cliente: { 
-                nombre: tipoPedido === 'Mesa' ? `Mesa ${identificador}` : identificador, 
+                nombre: esParaLlevar ? "Cliente en Barra (Para Llevar)" : `Mesa ${mesa}`, 
                 telefono: "", 
-                direccion: "En Local", 
+                direccion: "Local", 
                 metodoPago: "Efectivo/QR" 
             },
             items: cart.map(i => ({ 
@@ -43,118 +41,94 @@ export default function PosCartSidebar({ isOpen, onClose }) {
                 cantidad: i.quantity, 
                 precio: i.selectedPrice, 
                 tamaño: i.selectedSize,
-                nota: i.nota || '' // Enviamos la nota
+                nota: i.nota || ''
             })),
             total: total
         };
 
-        try {
-            const res = await fetch('/api/orders', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(nuevaOrden)
-            });
+        // Feedback de carga con Toast
+        const promise = fetch('/api/orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(nuevaOrden)
+        });
 
-            if (res.ok) {
-                swalBootstrap.fire({
-                    title: '¡Enviado!',
-                    text: 'La comanda está en cocina',
-                    icon: 'success',
-                    timer: 1500,
-                    showConfirmButton: false
-                });
+        toast.promise(promise, {
+            loading: 'Enviando a cocina...',
+            success: 'Comanda enviada exitosamente',
+            error: 'Error al enviar comanda'
+        });
+
+        promise
+        .then(res => {
+            if(res.ok) {
                 clearCart();
-                setIdentificador('');
+                setMesa('');
+                setEsParaLlevar(false);
                 onClose();
-            } else { throw new Error(); }
-        } catch { swalBootstrap.fire('Error', 'No se pudo enviar', 'error'); }
+            }
+        })
+        .catch(err => console.error(err));
     }
   };
 
+  // ... (El return sigue igual)
   return (
     <>
       {isOpen && <div className="modal-backdrop fade show" onClick={onClose} style={{zIndex: 1040}}></div>}
       <div className={`offcanvas offcanvas-end bg-white ${isOpen ? 'show' : ''}`} tabIndex="-1" style={{ visibility: isOpen ? 'visible' : 'hidden', zIndex: 1050 }}>
         <div className="offcanvas-header bg-dark text-white">
-          <h5 className="offcanvas-title fw-bold"><i className="bi bi-cart-check me-2"></i>Nueva Comanda</h5>
+          <h5 className="offcanvas-title"><i className="bi bi-display me-2"></i>Terminal POS</h5>
           <button type="button" className="btn-close btn-close-white" onClick={onClose}></button>
         </div>
-        
         <div className="offcanvas-body d-flex flex-column">
           <div className="flex-grow-1 overflow-auto mb-3">
-            {cart.length === 0 ? (
-                <div className="text-center mt-5 text-muted d-flex flex-column align-items-center">
-                    <i className="bi bi-basket fs-1 mb-2"></i>
-                    <p>Agrega productos</p>
-                </div>
-            ) : (
-              <div className="list-group list-group-flush">
+            {cart.length === 0 ? <div className="text-center mt-5 text-muted"><p>Sin items en la orden actual.</p></div> : 
+              <div className="list-group">
                 {cart.map((item, index) => (
-                  <div key={index} className="list-group-item px-0 py-2 border-bottom">
-                    <div className="d-flex justify-content-between align-items-start mb-2">
+                  <div key={index} className="list-group-item border-0 border-bottom px-0 pb-2">
+                    <div className="d-flex justify-content-between align-items-start">
                       <div className="w-100 me-2">
-                        <div className="fw-bold text-dark">{item.nombre}</div>
-                        <div className="text-muted small mb-1">
-                            <span className="badge bg-light text-dark border me-1">{item.selectedSize}</span>
-                            x{item.quantity}
-                        </div>
-                        {/* INPUT DE NOTAS DE COCINA */}
+                        <div className="fw-bold">{item.nombre}</div>
+                        <small className="text-muted">{item.selectedSize} | Cant: {item.quantity}</small>
                         <input 
                             type="text" 
-                            className="form-control form-control-sm bg-light border-0 text-secondary" 
-                            placeholder="Nota de cocina (opcional)..."
+                            className="form-control form-control-sm mt-1" 
+                            placeholder="Observaciones de cocina..."
                             value={item.nota || ''}
                             onChange={(e) => updateItemNote(item.id, item.selectedSize, e.target.value)}
                         />
                       </div>
-                      <div className="text-end" style={{minWidth: '70px'}}>
-                          <span className="fw-bold d-block mb-1">${(item.selectedPrice * item.quantity).toLocaleString()}</span>
-                          <button className="btn btn-sm text-danger p-0 border-0" onClick={() => removeFromCart(item.id, item.selectedSize)}>
-                              <i className="bi bi-trash"></i>
+                      <div className="text-end" style={{minWidth: '80px'}}>
+                          <span className="fw-bold">${(item.selectedPrice * item.quantity).toLocaleString()}</span><br/>
+                          <button className="btn btn-link text-danger p-0 text-decoration-none small" onClick={() => removeFromCart(item.id, item.selectedSize)}>
+                              <i className="bi bi-trash"></i> Eliminar
                           </button>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
-            )}
+            }
           </div>
-
-          <div className="border-top pt-3 bg-light p-3 rounded shadow-sm">
-            <div className="btn-group w-100 mb-3" role="group">
-                <input type="radio" className="btn-check" name="btnradio" id="btnMesa" autoComplete="off" 
-                    checked={tipoPedido === 'Mesa'} onChange={() => setTipoPedido('Mesa')} />
-                <label className="btn btn-outline-dark fw-bold" htmlFor="btnMesa">
-                    <i className="bi bi-table me-2"></i>Mesa
-                </label>
-
-                <input type="radio" className="btn-check" name="btnradio" id="btnLlevar" autoComplete="off" 
-                    checked={tipoPedido === 'Llevar'} onChange={() => setTipoPedido('Llevar')} />
-                <label className="btn btn-outline-dark fw-bold" htmlFor="btnLlevar">
-                    <i className="bi bi-bag-fill me-2"></i>Llevar
-                </label>
-            </div>
-
-            <div className="input-group mb-3">
-                <span className="input-group-text bg-white border-end-0">
-                    <i className={`bi ${tipoPedido === 'Mesa' ? 'bi-hash' : 'bi-person-fill'}`}></i>
-                </span>
-                <input 
-                    type="text" 
-                    className="form-control border-start-0 ps-0" 
-                    placeholder={tipoPedido === 'Mesa' ? "Número de Mesa..." : "Nombre Cliente..."} 
-                    value={identificador} 
-                    onChange={(e) => setIdentificador(e.target.value)} 
-                />
-            </div>
-
-            <div className="d-flex justify-content-between mb-3 align-items-end">
-                <span className="fs-5">Total:</span>
-                <span className="fs-2 fw-bold text-success">${total.toLocaleString()}</span>
-            </div>
+          <div className="border-top pt-3 bg-light p-3">
+            <div className="d-flex justify-content-between mb-3"><span className="fs-5 fw-bold">Total Orden:</span><span className="fs-4 fw-bold text-success">${total.toLocaleString()}</span></div>
             
-            <button onClick={handleCobrar} className="btn btn-dark w-100 py-3 fw-bold rounded-pill" disabled={cart.length === 0}>
-                <i className="bi bi-printer-fill me-2"></i> ENVIAR COMANDA
+            <div className="form-check form-switch mb-3">
+                <input className="form-check-input" type="checkbox" id="paraLlevarCheck" checked={esParaLlevar} onChange={(e) => setEsParaLlevar(e.target.checked)}/>
+                <label className="form-check-label fw-bold" htmlFor="paraLlevarCheck"><i className="bi bi-bag-check me-2"></i>Pedido para llevar</label>
+            </div>
+
+            {!esParaLlevar && (
+                <div className="input-group mb-3">
+                    <span className="input-group-text bg-white"><i className="bi bi-hash"></i></span>
+                    <input type="number" className="form-control" placeholder="Número de Mesa" value={mesa} onChange={(e) => setMesa(e.target.value)} />
+                </div>
+            )}
+
+            <button onClick={handleCobrar} className="btn btn-dark w-100 py-3 fw-bold" disabled={cart.length === 0}>
+                <i className="bi bi-printer-fill me-2"></i> 
+                {esParaLlevar ? 'FACTURAR (PARA LLEVAR)' : 'ENVIAR A PRODUCCIÓN'}
             </button>
           </div>
         </div>

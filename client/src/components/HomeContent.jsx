@@ -1,120 +1,62 @@
 import React, { useState, useEffect } from 'react';
-import { useCart } from '../context/CartContext';
-import toast from 'react-hot-toast';
 
 export default function HomeContent({ onSelectProduct }) {
-  const [products, setProducts] = useState([]);
-  const [filter, setFilter] = useState('Todos');
-  const { addToCart } = useCart();
+  const [menu, setMenu] = useState([])
+  const [filtro, setFiltro] = useState("Todos"); 
 
   useEffect(() => {
-    fetch('/api/productos')
-      .then(res => res.json())
-      .then(data => {
-          if (Array.isArray(data)) {
-              setProducts(data);
-          } else {
-              console.error("La API no devolvió un array:", data);
-              setProducts([]);
-          }
-      })
-      .catch(err => {
-          console.error("Error cargando productos:", err);
-          setProducts([]);
-      });
-  }, []);
+    fetch('/api/productos').then(res => res.json()).then(setMenu).catch(console.error);
+  }, [])
 
-  // Obtener categorías únicas con seguridad
-  const categories = ['Todos', ...new Set(products.map(p => p.categoria || 'Sin Categoría'))];
+  const ordenCategorias = ["Todos", "Arroz Frito", "Chop Suey", "Espaguetes", "Agridulce", "Platos Especiales", "Comidas Corrientes", "Porciones", "Bebidas"];
 
-  const filteredProducts = filter === 'Todos' 
-    ? products 
-    : products.filter(p => p.categoria === filter);
-
-  const handleAdd = (e, product) => {
-    e.stopPropagation(); 
-    const precioFinal = product.precio || 0;
-    addToCart(product, 1, precioFinal, product.tamaño || 'Personal');
-    
-    toast.success(`Agregado: ${product.nombre}`, {
-        icon: '🥢',
-        style: { borderRadius: '10px', background: '#333', color: '#fff' },
+  let productosParaMostrar = [];
+  if (filtro === "Todos") {
+    productosParaMostrar = [...menu].sort((a, b) => {
+      const indexA = ordenCategorias.indexOf(a.categoria);
+      const indexB = ordenCategorias.indexOf(b.categoria);
+      return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
     });
-  };
+  } else {
+    productosParaMostrar = menu.filter(p => p.categoria === filtro);
+  }
 
   return (
     <div>
-      {/* Filtros */}
       <div className="filter-container">
         <div className="container">
-          <div className="filter-scroll">
-            {categories.map(cat => (
-              <button
-                key={cat}
-                className={`filter-btn ${filter === cat ? 'active' : ''}`}
-                onClick={() => setFilter(cat)}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
+            <div className="filter-scroll">
+                {ordenCategorias.map(cat => (
+                <button key={cat} className={`filter-btn ${filtro === cat ? 'active' : ''}`} onClick={() => setFiltro(cat)}>{cat}</button>
+                ))}
+            </div>
         </div>
       </div>
-
-      {/* Grid de Productos */}
       <div className="container py-4">
-        {products.length === 0 && (
-            <div className="text-center py-5 text-muted">
-                <p>Cargando productos o inventario vacío...</p>
-            </div>
-        )}
-
-        <div className="row g-4">
-          {/* CORRECCIÓN AQUI: Usamos 'index' en lugar de Math.random() */}
-          {filteredProducts.map((product, index) => (
-            <div key={product.id || index} className="col-6 col-md-4 col-lg-3">
-              <div 
-                className="product-card h-100 d-flex flex-column" 
-                style={{cursor: 'pointer'}}
-                onClick={() => onSelectProduct(product)}
-              >
-                <div style={{height: '150px', overflow: 'hidden', position: 'relative'}}>
-                  <img 
-                    src={product.imagen || '/images/placeholder.jpg'} 
-                    alt={product.nombre || 'Producto'}
-                    className="w-100 h-100"
-                    style={{objectFit: 'cover'}}
-                    loading="lazy"
-                    onError={(e) => e.target.src = 'https://via.placeholder.com/150?text=No+Img'}
-                  />
-                  <div className="position-absolute bottom-0 start-0 bg-dark text-white px-2 py-1" style={{fontSize: '0.8rem', opacity: 0.9, borderTopRightRadius: '10px'}}>
-                    ${(product.precio || 0).toLocaleString()}
-                  </div>
+        <div className="row g-3">
+            {productosParaMostrar.map((plato) => (
+            <div key={plato.id} className="col-12 col-lg-6">
+                <div className="card product-card h-100 p-2 d-flex flex-row align-items-center">
+                <div style={{width: '120px', height: '120px', flexShrink: 0}} className="rounded overflow-hidden border">
+                    <img src={plato.imagen || "https://via.placeholder.com/150"} alt={plato.nombre} style={{width: '100%', height: '100%', objectFit:'cover'}} onError={(e) => { e.target.src = "https://via.placeholder.com/150?text=Sin+Foto"; }}/>
                 </div>
-                
-                <div className="p-3 d-flex flex-column flex-grow-1">
-                  <h6 className="fw-bold mb-1 text-truncate">{product.nombre || 'Sin Nombre'}</h6>
-                  <small className="text-muted mb-3" style={{fontSize: '0.8rem', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden'}}>
-                    {product.descripcion || product.categoria}
-                  </small>
-                  
-                  <div className="mt-auto d-flex justify-content-between align-items-center">
-                     <small className="text-secondary fw-bold" style={{fontSize: '0.75rem'}}>
-                        {product.tamaño || 'Unico'}
-                     </small>
-                     <button 
-                        className="btn btn-sm btn-outline-warning text-dark fw-bold rounded-pill px-3"
-                        onClick={(e) => handleAdd(e, product)}
-                     >
-                        +
-                     </button>
-                  </div>
+                <div className="card-body p-2 ps-3 w-100 d-flex flex-column justify-content-center">
+                    <h5 className="card-title fw-bold mb-1 text-dark" style={{fontSize: '1.1rem'}}>{plato.nombre}</h5>
+                    <small className="text-muted d-block mb-2 text-truncate" style={{maxWidth: '250px'}}>{plato.descripcion}</small>
+                    <div className="d-flex justify-content-between align-items-end mt-1">
+                        <span className="fw-bold text-danger fs-5">
+                          ${(plato.precios ? (Object.values(plato.precios).find(p => p > 0) || 0) : 0).toLocaleString()}
+                        </span>
+                        <button className="btn btn-sm btn-add" onClick={() => onSelectProduct(plato)}>
+                            <i className="bi bi-plus-lg me-1"></i>Agregar
+                        </button>
+                    </div>
                 </div>
-              </div>
+                </div>
             </div>
-          ))}
+            ))}
         </div>
       </div>
     </div>
-  );
+  )
 }

@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { printReceipt } from '../utils/printReceipt';
-import { swalBootstrap } from '../utils/swalConfig';
-import toast from 'react-hot-toast';
+import { swalBootstrap } from '../utils/swalConfig'; // IMPORTAR SWEETALERT
+import toast from 'react-hot-toast'; // IMPORTAR TOAST
 
 export default function OrdersPanel() {
+  // ... (estados y useEffect iguales) ...
   const [ordenes, setOrdenes] = useState([]);
 
   const cargarPedidos = () => {
-    fetch('/api/orders').then(res => res.json()).then(setOrdenes).catch(console.error);
+    fetch('/api/orders') 
+      .then(res => res.json())
+      .then(data => setOrdenes(data))
+      .catch(err => console.error(err));
   };
 
   useEffect(() => {
@@ -16,69 +20,138 @@ export default function OrdersPanel() {
     return () => clearInterval(intervalo);
   }, []);
 
-  const handleImprimir = (orden, modo) => {
+  const handleImprimir = (orden, modoImpresion) => {
+     // ... (función handleImprimir igual que antes) ...
     const itemsAdaptados = orden.items.map(i => ({
         nombre: i.nombre, quantity: i.cantidad, selectedSize: i.tamaño, selectedPrice: i.precio, nota: i.nota
     }));
-    const ordenInfo = { tipo: orden.tipo, numero: orden.numeroMesa };
-    printReceipt(itemsAdaptados, orden.total, orden.cliente, modo, ordenInfo);
+    const ordenInfo = { tipo: orden.tipo, numero: orden.numeroMesa, id: orden._id };
+    printReceipt(itemsAdaptados, orden.total, orden.cliente, modoImpresion, ordenInfo);
   };
 
-  const handleCompletar = async (id) => {
+  // ASYNC para SweetAlert
+  const handleCompletar = async (id, clienteNombre) => {
+    // REEMPLAZO WINDOW.CONFIRM
     const result = await swalBootstrap.fire({
-        title: '¿Despachar?',
+        title: '¿Despachar Orden?',
+        text: `Se marcará como completado el pedido de: ${clienteNombre}`,
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonText: 'Sí',
-        confirmButtonColor: '#198754'
+        confirmButtonText: 'Sí, Despachar',
+        confirmButtonColor: '#198754', // Verde manual para énfasis
+        cancelButtonText: 'Cancelar'
     });
 
-    if(result.isConfirmed) {
+    if(!result.isConfirmed) return;
+    
+    toast.promise(
         fetch(`/api/orders/${id}`, { 
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ estado: 'Completado' })
-        }).then(() => { toast.success("Despachado"); cargarPedidos(); });
-    }
+        }).then(() => cargarPedidos()),
+        {
+            loading: 'Procesando...',
+            success: 'Orden despachada',
+            error: 'Error al actualizar'
+        }
+    );
   };
 
+  const getCardStyle = (tipo) => {
+      // ... (igual que antes) ...
+      switch(tipo) {
+          case 'Mesa': return { border: 'border-primary', bg: 'bg-primary', icon: 'bi-shop' };
+          case 'Domicilio': return { border: 'border-warning', bg: 'bg-warning text-dark', icon: 'bi-bicycle' };
+          case 'Llevar': return { border: 'border-success', bg: 'bg-success', icon: 'bi-bag-fill' };
+          default: return { border: 'border-secondary', bg: 'bg-secondary', icon: 'bi-question' };
+      }
+  };
+
+  // ... (El return es casi igual, solo cambia la llamada a handleCompletar)
   return (
     <div className="container py-5">
       <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2 className="fw-bold text-danger">Cocina / Pendientes</h2>
-        <span className="badge bg-warning text-dark">En vivo</span>
+        <h2 className="fw-bold text-danger"><i className="bi bi-clipboard-data me-2"></i>Gestión de Pedidos</h2>
+        <span className="badge bg-secondary"><i className="bi bi-activity me-1"></i>En línea</span>
       </div>
-      <div className="row">
-            {ordenes.map(orden => (
-                <div key={orden._id} className="col-md-6 col-lg-4 mb-4">
-                    <div className={`card shadow h-100 border-${orden.tipo === 'Domicilio' ? 'warning' : 'dark'}`}>
-                        <div className={`card-header text-white fw-bold d-flex justify-content-between ${orden.tipo === 'Domicilio' ? 'bg-warning text-dark' : 'bg-dark'}`}>
-                            <span>{orden.tipo === 'Mesa' ? `MESA ${orden.numeroMesa}` : orden.tipo}</span>
-                            <span>{new Date(orden.fecha).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                        </div>
-                        <div className="card-body">
-                            <h5 className="card-title fw-bold">{orden.cliente.nombre}</h5>
-                            {orden.tipo === 'Domicilio' && <p className="small mb-2">{orden.cliente.direccion}</p>}
-                            <hr />
-                            <ul className="list-group list-group-flush">
-                                {orden.items.map((item, idx) => (
-                                    <li key={idx} className="list-group-item px-0">
-                                        <span className="badge bg-dark me-2">{item.cantidad}</span> 
-                                        <strong>{item.nombre}</strong> <small>({item.tamaño})</small>
-                                        {item.nota && <div className="bg-warning p-1 mt-1 small rounded">OBS: {item.nota}</div>}
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                        <div className="card-footer bg-white row g-1">
-                            <div className="col-6"><button onClick={() => handleImprimir(orden, 'cocina')} className="btn btn-secondary w-100 btn-sm">Comanda</button></div>
-                            <div className="col-6"><button onClick={() => handleImprimir(orden, 'cliente')} className="btn btn-outline-dark w-100 btn-sm">Factura</button></div>
-                            <div className="col-12"><button onClick={() => handleCompletar(orden._id)} className="btn btn-success w-100 fw-bold">DESPACHAR</button></div>
+      
+      {ordenes.length === 0 ? (
+        <div className="alert alert-secondary text-center py-5">
+            <h4><i className="bi bi-check2-circle me-2"></i>Sin pendientes</h4>
+            <p className="mb-0">No hay órdenes activas en este momento.</p>
+        </div>
+      ) : (
+        <div className="row">
+            {ordenes.map(orden => {
+                const style = getCardStyle(orden.tipo);
+                return (
+                    <div key={orden._id} className="col-md-6 col-lg-4 mb-4">
+                        <div className={`card shadow h-100 ${style.border}`}>
+                            
+                            <div className={`card-header text-white d-flex justify-content-between align-items-center ${style.bg}`}>
+                                <div className="fw-bold text-uppercase">
+                                    <i className={`bi ${style.icon} me-2`}></i>
+                                    {orden.tipo === 'Mesa' ? `MESA ${orden.numeroMesa}` : orden.tipo}
+                                </div>
+                                <span className="badge bg-light text-dark opacity-75">
+                                    {new Date(orden.fecha).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                </span>
+                            </div>
+
+                            <div className="card-body">
+                                <h5 className="card-title fw-bold mb-0 text-truncate">{orden.cliente.nombre}</h5>
+                                {orden.tipo === 'Domicilio' && <p className="small text-muted mb-2 text-truncate"><i className="bi bi-geo-alt me-1"></i>{orden.cliente.direccion}</p>}
+                                
+                                <hr />
+                                <ul className="list-group list-group-flush mb-3">
+                                    {orden.items.map((item, idx) => (
+                                        <li key={idx} className="list-group-item px-0 py-2 d-flex flex-column align-items-start">
+                                            <div className="w-100 d-flex justify-content-between">
+                                                <span>
+                                                    <span className="badge bg-dark me-2">{item.cantidad}</span> 
+                                                    <span className="fw-bold">{item.nombre}</span>
+                                                </span>
+                                                <small className="text-muted">{item.tamaño}</small>
+                                            </div>
+                                            {item.nota && (
+                                                <div className="alert alert-warning mt-1 mb-0 py-1 px-2 w-100 small">
+                                                    <i className="bi bi-info-circle-fill me-1"></i> 
+                                                    <strong>Obs:</strong> {item.nota}
+                                                </div>
+                                            )}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+
+                            <div className="card-footer bg-white p-2">
+                                <div className="row g-2">
+                                    <div className="col-6">
+                                        <button onClick={() => handleImprimir(orden, 'cocina')} className="btn btn-secondary w-100 btn-sm">
+                                            <i className="bi bi-printer me-1"></i> Comanda
+                                        </button>
+                                    </div>
+                                    <div className="col-6">
+                                        <button onClick={() => handleImprimir(orden, 'cliente')} className="btn btn-outline-dark w-100 btn-sm">
+                                            <i className="bi bi-receipt me-1"></i> Factura
+                                        </button>
+                                    </div>
+                                    <div className="col-12">
+                                        {/* CAMBIO AQUÍ: Pasamos el nombre del cliente */}
+                                        <button onClick={() => handleCompletar(orden._id, orden.cliente.nombre)} className="btn btn-success w-100 fw-bold">
+                                            <i className="bi bi-check-lg me-2"></i> DESPACHAR
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
-                </div>
-            ))}
-      </div>
+                );
+            })}
+        </div>
+      )}
     </div>
   );
 }
