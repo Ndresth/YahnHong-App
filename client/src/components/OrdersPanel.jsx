@@ -7,27 +7,25 @@ export default function OrdersPanel() {
   const [ordenes, setOrdenes] = useState([]);
   const [audioEnabled, setAudioEnabled] = useState(false); 
   
-  // Referencia para saber cuántas órdenes teníamos antes
+  // Ref para saber cuántas órdenes teníamos antes
   const prevOrdenesLength = useRef(0);
+  // Ref para evitar que suene al recargar la página (F5)
+  const initialized = useRef(false);
   
-  // Referencia al archivo de audio
-  const audioRef = useRef(new Audio('ding.mp3')); 
+  // CAMBIO: Apunta a la raíz. Asegúrate que ding.mp3 esté en client/public/ding.mp3
+  const audioRef = useRef(new Audio('/ding.mp3')); 
 
-  // --- FUNCIÓN PARA REPRODUCIR 3 VECES SEGUIDAS ---
+  // --- SONIDO (Repetir 3 veces) ---
   const reproducirAlerta = async () => {
     if (!audioRef.current) return;
 
-    // Intentamos reproducir el sonido 3 veces con un bucle
     for (let i = 0; i < 3; i++) {
         try {
-            // 1. Reseteamos el audio para evitar errores de "stuck"
             audioRef.current.pause();
             audioRef.current.currentTime = 0;
-            
-            // 2. Reproducimos
             await audioRef.current.play();
 
-            // 3. Esperamos a que termine el sonido antes de seguir al siguiente ciclo
+            // Esperar a que termine el sonido
             await new Promise(resolve => {
                 const onEnded = () => {
                     audioRef.current.removeEventListener('ended', onEnded);
@@ -35,13 +33,11 @@ export default function OrdersPanel() {
                 };
                 audioRef.current.addEventListener('ended', onEnded);
             });
-
-            // 4. Pequeña pausa de medio segundo entre sonidos para que no se atropellen
+            // Pequeña pausa entre repeticiones
             await new Promise(r => setTimeout(r, 500));
-
         } catch (error) {
-            console.error("Error en reproducción:", error);
-            break; // Si falla uno, detenemos el bucle
+            console.error("Error audio:", error);
+            break; 
         }
     }
   };
@@ -50,17 +46,22 @@ export default function OrdersPanel() {
     fetch('/api/orders') 
       .then(res => res.json())
       .then(data => {
-        // DETECCIÓN DE NUEVA ORDEN
-        // Si la cantidad actual es mayor a la anterior, Y no es la primera carga (0)
-        if (data.length > prevOrdenesLength.current && prevOrdenesLength.current !== 0) {
-            
+        
+        // 1. Si es la PRIMERA VEZ que cargamos la página
+        if (!initialized.current) {
+            prevOrdenesLength.current = data.length;
+            initialized.current = true;
+            setOrdenes(data);
+            return; 
+        }
+
+        // 2. Lógica de SONIDO: Si hay MÁS órdenes que antes (ej: de 0 a 1, o de 5 a 6)
+        if (data.length > prevOrdenesLength.current) {
             if (audioEnabled) {
-                // LLAMAMOS A LA FUNCIÓN DE 3 REPETICIONES
                 reproducirAlerta();
-                toast('¡Nueva Orden! (x3)', { icon: '🔔', duration: 6000 });
+                toast('¡NUEVO PEDIDO!', { icon: '🔔', duration: 6000 });
             } else {
-                // Si no hay audio activo, solo visual
-                toast('¡Nueva Orden en Cocina!', { icon: '🔔', duration: 5000 });
+                toast('¡NUEVO PEDIDO EN COCINA!', { icon: '🔔', duration: 5000 });
             }
         }
         
@@ -68,7 +69,7 @@ export default function OrdersPanel() {
         prevOrdenesLength.current = data.length;
         setOrdenes(data);
       })
-      .catch(err => console.error(err));
+      .catch((error) => console.error("Error cargando pedidos:", error));
   }, [audioEnabled]);
 
   useEffect(() => {
@@ -77,17 +78,15 @@ export default function OrdersPanel() {
     return () => clearInterval(intervalo);
   }, [cargarPedidos]);
 
-  // --- ACTIVAR SONIDO MANUALMENTE ---
+  // CORRECCIÓN ESLINT AQUÍ ABAJO:
   const enableAudio = () => {
-      // Forzamos un play/pause rápido para desbloquear el AudioContext del navegador
       audioRef.current.play().then(() => {
           audioRef.current.pause();
           audioRef.current.currentTime = 0;
           setAudioEnabled(true);
-          toast.success("Sistema de Audio Activado");
-      }).catch((e) => {
-          console.error(e);
-          toast.error("Error: No se encuentra el archivo /sounds/ding.mp3");
+          toast.success("Sonido Activado");
+      }).catch(() => { // <--- Quitamos la 'e' que causaba el error
+          toast.error("No se encuentra el archivo ding.mp3 en la carpeta public");
       });
   };
 
@@ -118,15 +117,11 @@ export default function OrdersPanel() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ estado: 'Completado' })
         }).then(() => {
-            // Restamos 1 al contador local para que el próximo pedido sí cuente como "nuevo"
+            // Restamos 1 al contador para que si llega otro, vuelva a detectar el aumento
             prevOrdenesLength.current = Math.max(0, prevOrdenesLength.current - 1);
             cargarPedidos();
         }),
-        {
-            loading: 'Procesando...',
-            success: 'Orden despachada',
-            error: 'Error al actualizar'
-        }
+        { loading: 'Procesando...', success: 'Orden despachada', error: 'Error' }
     );
   };
 
@@ -144,17 +139,15 @@ export default function OrdersPanel() {
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2 className="fw-bold text-danger"><i className="bi bi-clipboard-data me-2"></i>Gestión de Pedidos</h2>
         <div className="d-flex gap-2">
-            
             {!audioEnabled ? (
                 <button onClick={enableAudio} className="btn btn-danger btn-sm fw-bold animate__animated animate__pulse animate__infinite">
-                    <i className="bi bi-volume-mute-fill me-1"></i> CLICK PARA ACTIVAR SONIDO
+                    <i className="bi bi-volume-mute-fill me-1"></i> ACTIVAR SONIDO
                 </button>
             ) : (
                 <button className="btn btn-success btn-sm disabled">
                     <i className="bi bi-volume-up-fill me-1"></i> Sonido Activo
                 </button>
             )}
-            
             <span className="badge bg-secondary d-flex align-items-center"><i className="bi bi-activity me-1"></i>En línea</span>
         </div>
       </div>
@@ -171,63 +164,37 @@ export default function OrdersPanel() {
                 return (
                     <div key={orden._id} className="col-md-6 col-lg-4 mb-4">
                         <div className={`card shadow h-100 ${style.border}`}>
-                            
                             <div className={`card-header text-white d-flex justify-content-between align-items-center ${style.bg}`}>
                                 <div className="fw-bold text-uppercase">
-                                    <i className={`bi ${style.icon} me-2`}></i>
-                                    {orden.tipo === 'Mesa' ? `MESA ${orden.numeroMesa}` : orden.tipo}
+                                    <i className={`bi ${style.icon} me-2`}></i>{orden.tipo === 'Mesa' ? `MESA ${orden.numeroMesa}` : orden.tipo}
                                 </div>
                                 <span className="badge bg-light text-dark opacity-75">
                                     {new Date(orden.fecha).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                 </span>
                             </div>
-
                             <div className="card-body">
                                 <h5 className="card-title fw-bold mb-0 text-truncate">{orden.cliente.nombre}</h5>
                                 {orden.tipo === 'Domicilio' && <p className="small text-muted mb-2 text-truncate"><i className="bi bi-geo-alt me-1"></i>{orden.cliente.direccion}</p>}
-                                
                                 <hr />
                                 <ul className="list-group list-group-flush mb-3">
                                     {orden.items.map((item, idx) => (
                                         <li key={idx} className="list-group-item px-0 py-2 d-flex flex-column align-items-start">
                                             <div className="w-100 d-flex justify-content-between">
-                                                <span>
-                                                    <span className="badge bg-dark me-2">{item.cantidad}</span> 
-                                                    <span className="fw-bold">{item.nombre}</span>
-                                                </span>
+                                                <span><span className="badge bg-dark me-2">{item.cantidad}</span><span className="fw-bold">{item.nombre}</span></span>
                                                 <small className="text-muted">{item.tamaño}</small>
                                             </div>
-                                            {item.nota && (
-                                                <div className="alert alert-warning mt-1 mb-0 py-1 px-2 w-100 small">
-                                                    <i className="bi bi-info-circle-fill me-1"></i> 
-                                                    <strong>Obs:</strong> {item.nota}
-                                                </div>
-                                            )}
+                                            {item.nota && <div className="alert alert-warning mt-1 mb-0 py-1 px-2 w-100 small"><strong>Obs:</strong> {item.nota}</div>}
                                         </li>
                                     ))}
                                 </ul>
                             </div>
-
                             <div className="card-footer bg-white p-2">
                                 <div className="row g-2">
-                                    <div className="col-6">
-                                        <button onClick={() => handleImprimir(orden, 'cocina')} className="btn btn-secondary w-100 btn-sm">
-                                            <i className="bi bi-printer me-1"></i> Comanda
-                                        </button>
-                                    </div>
-                                    <div className="col-6">
-                                        <button onClick={() => handleImprimir(orden, 'cliente')} className="btn btn-outline-dark w-100 btn-sm">
-                                            <i className="bi bi-receipt me-1"></i> Factura
-                                        </button>
-                                    </div>
-                                    <div className="col-12">
-                                        <button onClick={() => handleCompletar(orden._id, orden.cliente.nombre)} className="btn btn-success w-100 fw-bold">
-                                            <i className="bi bi-check-lg me-2"></i> DESPACHAR
-                                        </button>
-                                    </div>
+                                    <div className="col-6"><button onClick={() => handleImprimir(orden, 'cocina')} className="btn btn-secondary w-100 btn-sm"><i className="bi bi-printer me-1"></i> Comanda</button></div>
+                                    <div className="col-6"><button onClick={() => handleImprimir(orden, 'cliente')} className="btn btn-outline-dark w-100 btn-sm"><i className="bi bi-receipt me-1"></i> Factura</button></div>
+                                    <div className="col-12"><button onClick={() => handleCompletar(orden._id, orden.cliente.nombre)} className="btn btn-success w-100 fw-bold"><i className="bi bi-check-lg me-2"></i> DESPACHAR</button></div>
                                 </div>
                             </div>
-
                         </div>
                     </div>
                 );
