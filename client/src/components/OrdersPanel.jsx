@@ -11,7 +11,7 @@ export default function OrdersPanel() {
   
   // VOLVEMOS AL ARCHIVO LOCAL
   // Vite buscará esto en 'client/public/sounds/ding.mp3'
-  const audioRef = useRef(new Audio('/sounds/ding.mp3')); 
+  const audioRef = useRef(new Audio('ding.mp3')); 
 
   const cargarPedidos = useCallback(() => {
     fetch('/api/orders') 
