@@ -11,6 +11,7 @@ export default function Reportes() {
     .then(data => {
         const formattedData = data.map(item => ({
             ...item,
+            // Fecha corta para el EJE X (ej: "lun 12")
             fechaCorta: new Date(item.fechaFin).toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric' })
         })).reverse();
         setCierres(formattedData);
@@ -47,7 +48,28 @@ export default function Reportes() {
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="fechaCorta" />
                     <YAxis />
-                    <Tooltip formatter={(value) => `$${value.toLocaleString()}`} />
+                    
+                    {/* TOOLTIP PERSONALIZADO */}
+                    <Tooltip 
+                        cursor={{fill: '#f0f0f0'}}
+                        formatter={(value) => [`$${value.toLocaleString()}`, 'Ventas Totales']}
+                        labelFormatter={(label, payload) => {
+                            if (payload && payload.length > 0) {
+                                // Aquí accedemos a la fecha real completa del objeto de datos
+                                const dataOriginal = payload[0].payload;
+                                return new Date(dataOriginal.fechaFin).toLocaleDateString('es-CO', { 
+                                    weekday: 'long', 
+                                    year: 'numeric', 
+                                    month: 'long', 
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                });
+                            }
+                            return label;
+                        }}
+                    />
+                    
                     <ReferenceLine y={0} stroke="#000" />
                     <Bar dataKey="totalVentasSistema" fill="#198754" name="Ventas" radius={[4, 4, 0, 0]} />
                 </BarChart>
