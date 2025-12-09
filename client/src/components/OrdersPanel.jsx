@@ -8,43 +8,63 @@ export default function OrdersPanel() {
   const [audioEnabled, setAudioEnabled] = useState(false); 
   
   const prevOrdenesLength = useRef(0);
-  const audioRef = useRef(new Audio('/sounds/ding.mp3')); 
+  
+  // CAMBIO: Usamos una URL de internet para asegurar que el sonido exista en Netlify
+  // Este es un sonido de "Ding" genérico
+  const audioRef = useRef(new Audio('https://cdn.freesound.org/previews/316/316847_4939433-lq.mp3')); 
 
-  // SOLUCIÓN: Usamos useCallback para estabilizar la función
   const cargarPedidos = useCallback(() => {
     fetch('/api/orders') 
       .then(res => res.json())
       .then(data => {
-        // LÓGICA DE ALERTA DE SONIDO
+        // Si hay más órdenes que antes...
         if (data.length > prevOrdenesLength.current && prevOrdenesLength.current !== 0) {
+            // INTENTO DE REPRODUCCIÓN AUTOMÁTICA
             if (audioEnabled) {
                 audioRef.current.currentTime = 0; 
-                audioRef.current.play().catch(e => console.error("Error reproduciendo audio:", e));
+                const playPromise = audioRef.current.play();
+                
+                if (playPromise !== undefined) {
+                    playPromise
+                    .catch(error => {
+                        console.error("El navegador bloqueó el sonido automático:", error);
+                        // Opcional: Mostrar un toast visual si falla el audio
+                        toast('¡Nueva Orden! (Sonido bloqueado)', { icon: '🔇' });
+                    });
+                }
+            } else {
+                // Si el audio no está activado, solo mostramos la notificación visual
+                toast('¡Nueva Orden en Cocina!', { icon: '🔔', duration: 5000 });
             }
-            toast('¡Nueva Orden en Cocina!', { icon: '🔔', duration: 4000 });
         }
         
         prevOrdenesLength.current = data.length;
         setOrdenes(data);
       })
       .catch(err => console.error(err));
-  }, [audioEnabled]); // Depende de audioEnabled
+  }, [audioEnabled]);
 
   useEffect(() => {
     cargarPedidos();
     const intervalo = setInterval(cargarPedidos, 5000); 
     return () => clearInterval(intervalo);
-  }, [cargarPedidos]); // Ahora depende de la función misma
+  }, [cargarPedidos]);
 
+  // FUNCIÓN PARA ACTIVAR EL SONIDO (User Gesture)
   const enableAudio = () => {
+      // Forzamos al navegador a aceptar que queremos audio
       audioRef.current.play().then(() => {
           audioRef.current.pause();
           audioRef.current.currentTime = 0;
           setAudioEnabled(true);
-          toast.success("Audio Activado Correctamente");
-      }).catch(() => toast.error("No se pudo activar el audio"));
+          toast.success("Audio Activado: Esperando pedidos...");
+      }).catch((e) => {
+          console.error(e);
+          toast.error("Error: No se pudo iniciar el audio. Revisa tu conexión.");
+      });
   };
 
+  // ... (El resto de funciones handleImprimir, handleCompletar, getCardStyle siguen IGUAL)
   const handleImprimir = (orden, modoImpresion) => {
     const itemsAdaptados = orden.items.map(i => ({
         nombre: i.nombre, quantity: i.cantidad, selectedSize: i.tamaño, selectedPrice: i.precio, nota: i.nota
@@ -97,9 +117,14 @@ export default function OrdersPanel() {
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2 className="fw-bold text-danger"><i className="bi bi-clipboard-data me-2"></i>Gestión de Pedidos</h2>
         <div className="d-flex gap-2">
-            {!audioEnabled && (
-                <button onClick={enableAudio} className="btn btn-outline-dark btn-sm animate__animated animate__pulse animate__infinite">
-                    <i className="bi bi-volume-mute-fill me-1"></i> Activar Sonido
+            {/* Si NO está activado el audio, mostramos el botón parpadeando */}
+            {!audioEnabled ? (
+                <button onClick={enableAudio} className="btn btn-danger btn-sm fw-bold animate__animated animate__pulse animate__infinite">
+                    <i className="bi bi-volume-mute-fill me-1"></i> CLICK PARA ACTIVAR SONIDO
+                </button>
+            ) : (
+                <button className="btn btn-success btn-sm disabled">
+                    <i className="bi bi-volume-up-fill me-1"></i> Sonido Activo
                 </button>
             )}
             <span className="badge bg-secondary d-flex align-items-center"><i className="bi bi-activity me-1"></i>En línea</span>
