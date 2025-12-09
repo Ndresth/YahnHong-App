@@ -1,16 +1,34 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { printReceipt } from '../utils/printReceipt';
-import { swalBootstrap } from '../utils/swalConfig'; // IMPORTAR SWEETALERT
-import toast from 'react-hot-toast'; // IMPORTAR TOAST
+import { swalBootstrap } from '../utils/swalConfig'; 
+import toast from 'react-hot-toast';
 
 export default function OrdersPanel() {
-  // ... (estados y useEffect iguales) ...
   const [ordenes, setOrdenes] = useState([]);
+  const [audioEnabled, setAudioEnabled] = useState(false); // Estado para saber si el audio está activo
+  
+  // Referencias para mantener valores sin renderizar de nuevo
+  const prevOrdenesLength = useRef(0);
+  const audioRef = useRef(new Audio('/sounds/ding.mp3')); // Asegúrate de crear este archivo
 
   const cargarPedidos = () => {
     fetch('/api/orders') 
       .then(res => res.json())
-      .then(data => setOrdenes(data))
+      .then(data => {
+        // LÓGICA DE ALERTA DE SONIDO
+        // Si hay más órdenes que antes, y no es la primera carga (0), suena la campana
+        if (data.length > prevOrdenesLength.current && prevOrdenesLength.current !== 0) {
+            if (audioEnabled) {
+                audioRef.current.currentTime = 0; // Reiniciar sonido si ya estaba sonando
+                audioRef.current.play().catch(e => console.error("Error reproduciendo audio:", e));
+            }
+            toast('¡Nueva Orden en Cocina!', { icon: '🔔', duration: 4000 });
+        }
+        
+        // Actualizamos la referencia para la próxima comparación
+        prevOrdenesLength.current = data.length;
+        setOrdenes(data);
+      })
       .catch(err => console.error(err));
   };
 
@@ -18,10 +36,19 @@ export default function OrdersPanel() {
     cargarPedidos();
     const intervalo = setInterval(cargarPedidos, 5000); 
     return () => clearInterval(intervalo);
-  }, []);
+  }, [audioEnabled]); // Dependencia agregada para que el intervalo lea el estado actualizado
+
+  // Función para habilitar el audio (el navegador requiere interacción humana)
+  const enableAudio = () => {
+      audioRef.current.play().then(() => {
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+          setAudioEnabled(true);
+          toast.success("Audio Activado Correctamente");
+      }).catch(() => toast.error("No se pudo activar el audio"));
+  };
 
   const handleImprimir = (orden, modoImpresion) => {
-     // ... (función handleImprimir igual que antes) ...
     const itemsAdaptados = orden.items.map(i => ({
         nombre: i.nombre, quantity: i.cantidad, selectedSize: i.tamaño, selectedPrice: i.precio, nota: i.nota
     }));
@@ -29,16 +56,14 @@ export default function OrdersPanel() {
     printReceipt(itemsAdaptados, orden.total, orden.cliente, modoImpresion, ordenInfo);
   };
 
-  // ASYNC para SweetAlert
   const handleCompletar = async (id, clienteNombre) => {
-    // REEMPLAZO WINDOW.CONFIRM
     const result = await swalBootstrap.fire({
         title: '¿Despachar Orden?',
         text: `Se marcará como completado el pedido de: ${clienteNombre}`,
         icon: 'warning',
         showCancelButton: true,
         confirmButtonText: 'Sí, Despachar',
-        confirmButtonColor: '#198754', // Verde manual para énfasis
+        confirmButtonColor: '#198754',
         cancelButtonText: 'Cancelar'
     });
 
@@ -49,7 +74,11 @@ export default function OrdersPanel() {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ estado: 'Completado' })
-        }).then(() => cargarPedidos()),
+        }).then(() => {
+            // Ajustamos el contador para que no suene al recargar (porque bajó la cantidad)
+            prevOrdenesLength.current = Math.max(0, prevOrdenesLength.current - 1);
+            cargarPedidos();
+        }),
         {
             loading: 'Procesando...',
             success: 'Orden despachada',
@@ -59,7 +88,6 @@ export default function OrdersPanel() {
   };
 
   const getCardStyle = (tipo) => {
-      // ... (igual que antes) ...
       switch(tipo) {
           case 'Mesa': return { border: 'border-primary', bg: 'bg-primary', icon: 'bi-shop' };
           case 'Domicilio': return { border: 'border-warning', bg: 'bg-warning text-dark', icon: 'bi-bicycle' };
@@ -68,12 +96,18 @@ export default function OrdersPanel() {
       }
   };
 
-  // ... (El return es casi igual, solo cambia la llamada a handleCompletar)
   return (
     <div className="container py-5">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2 className="fw-bold text-danger"><i className="bi bi-clipboard-data me-2"></i>Gestión de Pedidos</h2>
-        <span className="badge bg-secondary"><i className="bi bi-activity me-1"></i>En línea</span>
+        <div className="d-flex gap-2">
+            {!audioEnabled && (
+                <button onClick={enableAudio} className="btn btn-outline-dark btn-sm animate__animated animate__pulse animate__infinite">
+                    <i className="bi bi-volume-mute-fill me-1"></i> Activar Sonido
+                </button>
+            )}
+            <span className="badge bg-secondary d-flex align-items-center"><i className="bi bi-activity me-1"></i>En línea</span>
+        </div>
       </div>
       
       {ordenes.length === 0 ? (
@@ -138,7 +172,6 @@ export default function OrdersPanel() {
                                         </button>
                                     </div>
                                     <div className="col-12">
-                                        {/* CAMBIO AQUÍ: Pasamos el nombre del cliente */}
                                         <button onClick={() => handleCompletar(orden._id, orden.cliente.nombre)} className="btn btn-success w-100 fw-bold">
                                             <i className="bi bi-check-lg me-2"></i> DESPACHAR
                                         </button>
