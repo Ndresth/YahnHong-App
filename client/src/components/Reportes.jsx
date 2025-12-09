@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Rectangle } from 'recharts';
 
 export default function Reportes() {
   const [cierres, setCierres] = useState([]);
@@ -11,14 +11,12 @@ export default function Reportes() {
     .then(data => {
         const formattedData = data.map(item => ({
             ...item,
-            // Etiqueta corta para el eje X (ej: "lun 12")
             fechaCorta: new Date(item.fechaFin).toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric' })
         })).reverse();
         setCierres(formattedData);
     });
   }, []);
 
-  // --- DESCARGAR EXCEL HISTÓRICO ---
   const handleDownloadHistorical = async (cierreId) => {
       try {
           const res = await fetch(`/api/ventas/excel/${cierreId}`, {
@@ -49,10 +47,10 @@ export default function Reportes() {
                     <XAxis dataKey="fechaCorta" />
                     <YAxis />
                     
-                    {/* TOOLTIP CORREGIDO Y MEJORADO */}
                     <Tooltip 
-                        cursor={{fill: '#f8f9fa'}} // Color suave al pasar el mouse por la barra
-                        wrapperStyle={{ zIndex: 1000 }} // Asegura que se vea encima de todo
+                        // 1. Ponemos 'transparent' para quitar el cuadro gris de fondo que confunde
+                        cursor={{ fill: 'transparent' }}
+                        wrapperStyle={{ zIndex: 1000 }}
                         contentStyle={{ 
                             backgroundColor: '#fff', 
                             borderRadius: '8px', 
@@ -62,7 +60,6 @@ export default function Reportes() {
                         }}
                         formatter={(value) => [`$${value.toLocaleString()}`, 'Venta Total']}
                         labelFormatter={(label, payload) => {
-                            // Lógica para mostrar la fecha completa y hora
                             if (payload && payload.length > 0) {
                                 const dataOriginal = payload[0].payload;
                                 return new Date(dataOriginal.fechaFin).toLocaleDateString('es-CO', { 
@@ -79,7 +76,16 @@ export default function Reportes() {
                     />
                     
                     <ReferenceLine y={0} stroke="#000" />
-                    <Bar dataKey="totalVentasSistema" fill="#198754" name="Ventas" radius={[4, 4, 0, 0]} />
+                    
+                    {/* 2. AGREGAMOS 'activeBar': Esto hace que la barra se ilumine/cambie al pasar el mouse */}
+                    <Bar 
+                        dataKey="totalVentasSistema" 
+                        fill="#198754" 
+                        name="Ventas" 
+                        radius={[4, 4, 0, 0]}
+                        // Al pasar el mouse, la barra se pone verde oscuro y borde amarillo (Tus colores de marca)
+                        activeBar={<Rectangle fill="#145c32" stroke="#FFC107" strokeWidth={2} />}
+                    />
                 </BarChart>
             </ResponsiveContainer>
         </div>
