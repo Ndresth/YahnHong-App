@@ -9,11 +9,9 @@ export default function Reportes() {
     fetch('/api/cierres', { headers: { 'Authorization': `Bearer ${getToken()}` } })
     .then(res => res.json())
     .then(data => {
-        const formattedData = data.map(item => ({
-            ...item,
-            fechaCorta: new Date(item.fechaFin).toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric' })
-        })).reverse();
-        setCierres(formattedData);
+        // No necesitamos crear 'fechaCorta' aquí, lo haremos al vuelo en el gráfico
+        const dataOrdenada = [...data].reverse();
+        setCierres(dataOrdenada);
     });
   }, []);
 
@@ -44,47 +42,51 @@ export default function Reportes() {
             <ResponsiveContainer>
                 <BarChart data={cierres}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="fechaCorta" />
+                    
+                    {/* SOLUCIÓN AQUÍ: 
+                        1. dataKey="fechaFin": Usamos el dato único (ISO string) para diferenciar barras.
+                        2. tickFormatter: Convertimos ese dato feo en "mar 9" solo para mostrarlo.
+                    */}
+                    <XAxis 
+                        dataKey="fechaFin" 
+                        tickFormatter={(value) => new Date(value).toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric' })}
+                    />
+                    
                     <YAxis />
                     
                     <Tooltip 
-                        // 1. Ponemos 'transparent' para quitar el cuadro gris de fondo que confunde
-                        cursor={{ fill: 'transparent' }}
+                        cursor={{ fill: 'transparent' }} // Fondo transparente al pasar el mouse
                         wrapperStyle={{ zIndex: 1000 }}
                         contentStyle={{ 
                             backgroundColor: '#fff', 
                             borderRadius: '8px', 
                             border: '1px solid #dee2e6',
-                            boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)', // Sombra más elegante
                             color: '#333'
                         }}
                         formatter={(value) => [`$${value.toLocaleString()}`, 'Venta Total']}
-                        labelFormatter={(label, payload) => {
-                            if (payload && payload.length > 0) {
-                                const dataOriginal = payload[0].payload;
-                                return new Date(dataOriginal.fechaFin).toLocaleDateString('es-CO', { 
-                                    weekday: 'long', 
-                                    year: 'numeric', 
-                                    month: 'long', 
-                                    day: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                });
-                            }
-                            return label;
+                        labelFormatter={(label) => {
+                            // Convertimos la etiqueta (que ahora es la fecha larga única) a un formato legible para el título del tooltip
+                            return new Date(label).toLocaleDateString('es-CO', { 
+                                weekday: 'long', 
+                                year: 'numeric', 
+                                month: 'long', 
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            });
                         }}
                     />
                     
                     <ReferenceLine y={0} stroke="#000" />
                     
-                    {/* 2. AGREGAMOS 'activeBar': Esto hace que la barra se ilumine/cambie al pasar el mouse */}
                     <Bar 
                         dataKey="totalVentasSistema" 
                         fill="#198754" 
                         name="Ventas" 
                         radius={[4, 4, 0, 0]}
-                        // Al pasar el mouse, la barra se pone verde oscuro y borde amarillo (Tus colores de marca)
-                        activeBar={<Rectangle fill="#145c32" stroke="#FFC107" strokeWidth={2} />}
+                        // Efecto visual: Borde amarillo y verde oscuro al seleccionar
+                        activeBar={<Rectangle fill="#145c32" stroke="#FFC107" strokeWidth={3} />}
                     />
                 </BarChart>
             </ResponsiveContainer>
@@ -99,7 +101,11 @@ export default function Reportes() {
                 <tbody>
                     {[...cierres].reverse().map(cierre => (
                         <tr key={cierre._id}>
-                            <td>{new Date(cierre.fechaFin).toLocaleDateString()} <br/><span className="text-muted">{new Date(cierre.fechaFin).toLocaleTimeString()}</span></td>
+                            <td>
+                                {new Date(cierre.fechaFin).toLocaleDateString()} 
+                                <br/>
+                                <span className="text-muted">{new Date(cierre.fechaFin).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                            </td>
                             <td className="fw-bold">${cierre.totalVentasSistema.toLocaleString()}</td>
                             <td className="text-danger">-${cierre.totalGastos.toLocaleString()}</td>
                             <td className="fw-bold text-primary">${cierre.totalEfectivoReal.toLocaleString()}</td>
