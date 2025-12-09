@@ -50,7 +50,7 @@ export default function AdminDashboard() {
     }
   }, [vista, cargarDatos]);
 
-  // --- EXCEL (Yahn Hong) ---
+  // --- EXCEL (Mantenemos el nombre YahnHong) ---
   const handleDescargarExcel = async () => {
     setCargandoExcel(true);
     const promise = fetch('/api/ventas/excel/actual', { headers: { 'Authorization': `Bearer ${getToken()}` } });
@@ -72,7 +72,7 @@ export default function AdminDashboard() {
     finally { setCargandoExcel(false); }
   };
 
-  // --- GESTIÓN GASTOS ---
+  // --- GASTOS (Mejorado con Toast Promise) ---
   const handleRegistrarGasto = async (e) => {
       e.preventDefault();
       if (!nuevoGasto.descripcion || !nuevoGasto.monto) {
@@ -93,6 +93,7 @@ export default function AdminDashboard() {
       });
   };
 
+  // --- BORRAR GASTO (Nueva funcionalidad agregada) ---
   const handleBorrarGasto = async (id) => { 
       const result = await swalBootstrap.fire({
           title: '¿Eliminar Gasto?',
@@ -110,7 +111,7 @@ export default function AdminDashboard() {
       }
   };
 
-  // --- CIERRE DE CAJA (MODIFICADO: SÓLO ICONOS, SIN EMOJIS) ---
+  // --- CIERRE DE CAJA (Lógica completa nueva con el estilo viejo) ---
   const handleCerrarCaja = async () => {
     // 1. Modal con Input validado
     const { value: inputEfectivo } = await swalBootstrap.fire({
@@ -151,7 +152,7 @@ export default function AdminDashboard() {
 
     if (!confirmResult.isConfirmed) return;
 
-    // 3. Envío y cálculo de diferencia con validación de token
+    // 3. Envío y cálculo de diferencia (Backend responde)
     toast.promise(
         fetch('/api/ventas/cerrar', { 
             method: 'POST', 
@@ -159,50 +160,24 @@ export default function AdminDashboard() {
             body: JSON.stringify({ efectivoReal }) 
         }).then(async res => {
             const data = await res.json();
-            
-            // Validación de Token
-            if (res.status === 401 || res.status === 403) {
-                localStorage.clear();
-                navigate('/login');
-                throw new Error("Sesión expirada. Inicie sesión nuevamente.");
-            }
-
             if (!res.ok) throw new Error(data.message);
             return data;
         }),
         {
             loading: 'Cerrando turno...',
             success: (data) => {
-                const rep = data.reporte;
-                
-                // --- LÓGICA DE ICONOS BOOTSTRAP (SIN EMOJIS) ---
-                let iconoHtml = '<i class="bi bi-check-circle-fill text-success" style="font-size: 4rem;"></i>';
+                const rep = data.reporte; // Asumiendo que el backend devuelve esto
+                let icono = '✅';
                 let estado = "Balance Correcto";
-                let colorTitulo = 'text-success';
-
-                if (rep && rep.diferencia > 0) { 
-                    // Icono de Excedente (Dinero extra/Cerdito)
-                    iconoHtml = '<i class="bi bi-piggy-bank-fill text-warning" style="font-size: 4rem;"></i>'; 
-                    estado = `Excedente: $${rep.diferencia.toLocaleString()}`; 
-                    colorTitulo = 'text-warning';
-                }
-                if (rep && rep.diferencia < 0) { 
-                    // Icono de Faltante (Alerta)
-                    iconoHtml = '<i class="bi bi-exclamation-triangle-fill text-danger" style="font-size: 4rem;"></i>'; 
-                    estado = `Faltante: $${Math.abs(rep.diferencia).toLocaleString()}`; 
-                    colorTitulo = 'text-danger';
-                }
+                if (rep && rep.diferencia > 0) { icono = '🤑'; estado = `Excedente: $${rep.diferencia.toLocaleString()}`; }
+                if (rep && rep.diferencia < 0) { icono = '⚠️'; estado = `Faltante: $${Math.abs(rep.diferencia).toLocaleString()}`; }
                 
-                // Modal final con resultado visual limpio
+                // Modal final con resultado visual
                 swalBootstrap.fire({
                     title: '¡Turno Cerrado!',
-                    html: `
-                        <div class="my-3">${iconoHtml}</div>
-                        <h4 class="${colorTitulo} fw-bold">${estado}</h4>
-                    `,
-                    icon: null // Quitamos el icono por defecto para usar el nuestro grande
+                    html: `<h3 class="mt-3">${icono}</h3><p class="fs-4">${estado}</p>`,
+                    icon: (rep && rep.diferencia === 0) ? 'success' : 'warning'
                 });
-                
                 cargarDatos();
                 return 'Cierre completado';
             },
@@ -280,6 +255,7 @@ export default function AdminDashboard() {
                                             <span>{g.descripcion}</span>
                                             <span>
                                                 <span className="text-danger fw-bold me-2">-${g.monto.toLocaleString()}</span>
+                                                {/* Agregué el botón de eliminar aquí manteniendo el estilo */}
                                                 <i className="bi bi-trash text-muted" style={{cursor:'pointer'}} onClick={() => handleBorrarGasto(g._id)} title="Borrar gasto"></i>
                                             </span>
                                         </li>
