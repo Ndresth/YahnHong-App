@@ -20,6 +20,7 @@ export default function AdminDashboard() {
   const userRole = localStorage.getItem('role');
   const isAdmin = userRole === 'admin'; 
 
+  // --- LOGOUT ---
   const handleLogout = async () => {
     const result = await swalBootstrap.fire({
         title: '¿Cerrar Sesión?',
@@ -49,6 +50,7 @@ export default function AdminDashboard() {
     }
   }, [vista, cargarDatos]);
 
+  // --- EXCEL (Mantenemos el nombre YahnHong) ---
   const handleDescargarExcel = async () => {
     setCargandoExcel(true);
     const promise = fetch('/api/ventas/excel/actual', { headers: { 'Authorization': `Bearer ${getToken()}` } });
@@ -70,39 +72,71 @@ export default function AdminDashboard() {
     finally { setCargandoExcel(false); }
   };
 
+  // --- GASTOS (Mejorado con Toast Promise) ---
   const handleRegistrarGasto = async (e) => {
       e.preventDefault();
-      if (!nuevoGasto.descripcion || !nuevoGasto.monto) return toast.error("Complete los datos.");
+      if (!nuevoGasto.descripcion || !nuevoGasto.monto) {
+          toast.error("Complete descripción y monto.");
+          return;
+      }
       
-      fetch('/api/gastos', { 
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` }, 
-          body: JSON.stringify(nuevoGasto) 
-      }).then(() => {
-          toast.success("Gasto registrado");
+      toast.promise(
+          fetch('/api/gastos', { 
+              method: 'POST', 
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` }, 
+              body: JSON.stringify(nuevoGasto) 
+          }),
+          { loading: 'Registrando...', success: 'Gasto registrado', error: 'Error al registrar' }
+      ).then(() => {
           setNuevoGasto({ descripcion: '', monto: '' }); 
           cargarDatos();
       });
   };
 
+  // --- BORRAR GASTO (Nueva funcionalidad agregada) ---
+  const handleBorrarGasto = async (id) => { 
+      const result = await swalBootstrap.fire({
+          title: '¿Eliminar Gasto?',
+          text: "Esta acción no se puede deshacer.",
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonText: 'Sí, eliminar',
+          confirmButtonColor: '#dc3545'
+      });
+
+      if(result.isConfirmed) {
+          await fetch(`/api/gastos/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${getToken()}` } }); 
+          toast.success("Gasto eliminado.");
+          cargarDatos();
+      }
+  };
+
+  // --- CIERRE DE CAJA (Lógica completa nueva con el estilo viejo) ---
   const handleCerrarCaja = async () => {
+    // 1. Modal con Input validado
     const { value: inputEfectivo } = await swalBootstrap.fire({
         title: 'Arqueo de Caja',
         input: 'text',
         inputLabel: 'Ingrese el efectivo físico total:',
         inputPlaceholder: 'Ej: 150000',
         showCancelButton: true,
-        confirmButtonText: 'Verificar'
+        confirmButtonText: 'Verificar',
+        inputValidator: (value) => {
+            if (!value || isNaN(Number(value))) {
+              return '¡Debe ingresar un valor numérico válido!';
+            }
+        }
     });
 
     if (!inputEfectivo) return;
     const efectivoReal = Number(inputEfectivo);
 
+    // 2. Resumen HTML antes de enviar
     const msgHtml = `
         <div class="text-start bg-light p-3 rounded">
             <p class="mb-1 text-success">Ventas: <b>$${finanzas.totalVentas.toLocaleString()}</b></p>
             <p class="mb-1 text-danger">Gastos: <b>$${finanzas.totalGastos.toLocaleString()}</b></p>
-            <hr/>
+            <hr class="my-2"/>
             <p class="mb-0 fs-5">Teórico: <b>$${finanzas.totalCaja.toLocaleString()}</b></p>
             <p class="mb-0 fs-5 text-primary">Real: <b>$${efectivoReal.toLocaleString()}</b></p>
         </div>
@@ -118,18 +152,41 @@ export default function AdminDashboard() {
 
     if (!confirmResult.isConfirmed) return;
 
-    fetch('/api/ventas/cerrar', { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` }, 
-        body: JSON.stringify({ efectivoReal }) 
-    })
-    .then(res => res.json())
-    .then(data => {
-        swalBootstrap.fire('Turno Cerrado', data.message, 'success');
-        cargarDatos();
-    });
+    // 3. Envío y cálculo de diferencia (Backend responde)
+    toast.promise(
+        fetch('/api/ventas/cerrar', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` }, 
+            body: JSON.stringify({ efectivoReal }) 
+        }).then(async res => {
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message);
+            return data;
+        }),
+        {
+            loading: 'Cerrando turno...',
+            success: (data) => {
+                const rep = data.reporte; // Asumiendo que el backend devuelve esto
+                let icono = '✅';
+                let estado = "Balance Correcto";
+                if (rep && rep.diferencia > 0) { icono = '🤑'; estado = `Excedente: $${rep.diferencia.toLocaleString()}`; }
+                if (rep && rep.diferencia < 0) { icono = '⚠️'; estado = `Faltante: $${Math.abs(rep.diferencia).toLocaleString()}`; }
+                
+                // Modal final con resultado visual
+                swalBootstrap.fire({
+                    title: '¡Turno Cerrado!',
+                    html: `<h3 class="mt-3">${icono}</h3><p class="fs-4">${estado}</p>`,
+                    icon: (rep && rep.diferencia === 0) ? 'success' : 'warning'
+                });
+                cargarDatos();
+                return 'Cierre completado';
+            },
+            error: (err) => `Error: ${err.message}`
+        }
+    );
   };
 
+  // --- INVENTARIO ---
   const handleDelete = async (id) => { 
       if(!isAdmin) return;
       const result = await swalBootstrap.fire({ title: '¿Eliminar?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Sí' });
@@ -143,11 +200,15 @@ export default function AdminDashboard() {
     if(!isAdmin) return;
     const method = editingProduct ? 'PUT' : 'POST';
     const url = editingProduct ? `/api/productos/${formData.id}` : '/api/productos';
-    fetch(url, { 
-        method, 
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` }, 
-        body: JSON.stringify(formData) 
-    }).then(() => { toast.success("Guardado"); setShowForm(false); cargarDatos(); });
+    
+    toast.promise(
+        fetch(url, { 
+            method, 
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` }, 
+            body: JSON.stringify(formData) 
+        }),
+        { loading: 'Guardando...', success: 'Guardado correctamente', error: 'Error al guardar' }
+    ).then(() => { setShowForm(false); cargarDatos(); });
   };
 
   return (
@@ -190,11 +251,16 @@ export default function AdminDashboard() {
                             <div className="overflow-auto" style={{maxHeight: '150px'}}>
                                 <ul className="list-group list-group-flush small">
                                     {gastos.map(g => (
-                                        <li key={g._id} className="list-group-item d-flex justify-content-between">
+                                        <li key={g._id} className="list-group-item d-flex justify-content-between align-items-center">
                                             <span>{g.descripcion}</span>
-                                            <span className="text-danger">-${g.monto.toLocaleString()}</span>
+                                            <span>
+                                                <span className="text-danger fw-bold me-2">-${g.monto.toLocaleString()}</span>
+                                                {/* Agregué el botón de eliminar aquí manteniendo el estilo */}
+                                                <i className="bi bi-trash text-muted" style={{cursor:'pointer'}} onClick={() => handleBorrarGasto(g._id)} title="Borrar gasto"></i>
+                                            </span>
                                         </li>
                                     ))}
+                                    {gastos.length === 0 && <li className="text-center text-muted fst-italic mt-2">No hay gastos hoy</li>}
                                 </ul>
                             </div>
                         </div>
@@ -215,7 +281,7 @@ export default function AdminDashboard() {
                                 <tbody>
                                     {productos.map((prod) => (
                                     <tr key={prod.id}>
-                                        <td><img src={prod.imagen} alt="img" style={{width: '40px', height:'40px', objectFit:'cover', borderRadius:'5px'}} /></td>
+                                        <td><img src={prod.imagen || "https://via.placeholder.com/40"} alt="img" style={{width: '40px', height:'40px', objectFit:'cover', borderRadius:'5px'}} /></td>
                                         <td className="fw-bold">{prod.nombre}</td>
                                         <td><span className="badge bg-secondary">{prod.categoria}</span></td>
                                         <td>
