@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { printReceipt } from '../utils/printReceipt';
+import { swalBootstrap } from '../utils/swalConfig';
 import toast from 'react-hot-toast';
 
 export default function OrdersPanel() {
   const [ordenes, setOrdenes] = useState([]);
 
   const cargarPedidos = () => {
-    fetch('/api/orders') 
-      .then(res => res.json())
-      .then(data => setOrdenes(data))
-      .catch(err => console.error(err));
+    fetch('/api/orders').then(res => res.json()).then(setOrdenes).catch(console.error);
   };
 
   useEffect(() => {
@@ -18,83 +16,69 @@ export default function OrdersPanel() {
     return () => clearInterval(intervalo);
   }, []);
 
-  const handleCompletar = (orden) => {
-    printReceipt(orden.items, orden.total, orden.cliente, orden.tipo, orden.numeroMesa);
+  const handleImprimir = (orden, modo) => {
+    const itemsAdaptados = orden.items.map(i => ({
+        nombre: i.nombre, quantity: i.cantidad, selectedSize: i.tamaño, selectedPrice: i.precio, nota: i.nota
+    }));
+    const ordenInfo = { tipo: orden.tipo, numero: orden.numeroMesa };
+    printReceipt(itemsAdaptados, orden.total, orden.cliente, modo, ordenInfo);
+  };
 
-    fetch(`/api/orders/${orden._id}`, { 
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ estado: 'Completado' })
-    })
-    .then(() => {
-        toast.success("Pedido despachado");
-        cargarPedidos();
-    })
-    .catch(() => toast.error("Error al completar"));
+  const handleCompletar = async (id) => {
+    const result = await swalBootstrap.fire({
+        title: '¿Despachar?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí',
+        confirmButtonColor: '#198754'
+    });
+
+    if(result.isConfirmed) {
+        fetch(`/api/orders/${id}`, { 
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ estado: 'Completado' })
+        }).then(() => { toast.success("Despachado"); cargarPedidos(); });
+    }
   };
 
   return (
     <div className="container py-5">
-      <div className="d-flex justify-content-between align-items-center mb-4 border-bottom pb-2">
-        <h2 className="fw-bold text-dark"><i className="bi bi-fire text-danger me-2"></i>Cocina en Vivo</h2>
-        <div className="text-muted small">
-            <i className="bi bi-clock-history me-1"></i> Actualizado: {new Date().toLocaleTimeString()}
-        </div>
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h2 className="fw-bold text-danger">Cocina / Pendientes</h2>
+        <span className="badge bg-warning text-dark">En vivo</span>
       </div>
-      
-      {ordenes.length === 0 ? (
-        <div className="text-center mt-5 py-5 text-muted">
-            <i className="bi bi-check2-circle display-1 d-block mb-3 opacity-50"></i>
-            <h4>Todo en orden</h4>
-            <p>No hay comandas pendientes.</p>
-        </div>
-      ) : (
-        <div className="row g-4">
+      <div className="row">
             {ordenes.map(orden => (
-                <div key={orden._id} className="col-md-6 col-lg-4 col-xl-3">
-                    <div className={`card h-100 shadow border-0 ${orden.tipo === 'Llevar' ? 'bg-warning-subtle' : ''}`}>
-                        <div className={`card-header fw-bold d-flex justify-content-between align-items-center ${orden.tipo === 'Llevar' ? 'bg-warning text-dark' : 'bg-dark text-white'}`}>
-                            <span>
-                                {orden.tipo === 'Llevar' ? <i className="bi bi-bag-fill me-2"></i> : <i className="bi bi-table me-2"></i>}
-                                {orden.tipo === 'Llevar' ? 'PARA LLEVAR' : `MESA ${orden.numeroMesa}`}
-                            </span>
-                            <span className="badge bg-white text-dark small">#{orden._id.slice(-4)}</span>
+                <div key={orden._id} className="col-md-6 col-lg-4 mb-4">
+                    <div className={`card shadow h-100 border-${orden.tipo === 'Domicilio' ? 'warning' : 'dark'}`}>
+                        <div className={`card-header text-white fw-bold d-flex justify-content-between ${orden.tipo === 'Domicilio' ? 'bg-warning text-dark' : 'bg-dark'}`}>
+                            <span>{orden.tipo === 'Mesa' ? `MESA ${orden.numeroMesa}` : orden.tipo}</span>
+                            <span>{new Date(orden.fecha).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                         </div>
-                        
                         <div className="card-body">
-                            <h5 className="card-title fw-bold mb-1">{orden.cliente.nombre}</h5>
-                            <small className="text-muted d-block mb-3"><i className="bi bi-clock me-1"></i>{new Date(orden.fecha).toLocaleTimeString()}</small>
-                            
-                            <ul className="list-group list-group-flush mb-3">
+                            <h5 className="card-title fw-bold">{orden.cliente.nombre}</h5>
+                            {orden.tipo === 'Domicilio' && <p className="small mb-2">{orden.cliente.direccion}</p>}
+                            <hr />
+                            <ul className="list-group list-group-flush">
                                 {orden.items.map((item, idx) => (
-                                    <li key={idx} className="list-group-item px-0 py-2 bg-transparent border-bottom-dashed">
-                                        <div style={{lineHeight: '1.2'}}>
-                                            <span className="fw-bold fs-5 me-2">{item.cantidad}x</span> 
-                                            {item.nombre}
-                                            <div className="text-muted small fst-italic ms-4">
-                                                {item.tamaño}
-                                                {/* MOSTRAR NOTA SI EXISTE */}
-                                                {item.nota && <span className="d-block text-danger fw-bold mt-1"><i className="bi bi-exclamation-circle me-1"></i>{item.nota}</span>}
-                                            </div>
-                                        </div>
+                                    <li key={idx} className="list-group-item px-0">
+                                        <span className="badge bg-dark me-2">{item.cantidad}</span> 
+                                        <strong>{item.nombre}</strong> <small>({item.tamaño})</small>
+                                        {item.nota && <div className="bg-warning p-1 mt-1 small rounded">OBS: {item.nota}</div>}
                                     </li>
                                 ))}
                             </ul>
                         </div>
-                        
-                        <div className="card-footer bg-transparent border-0 p-3">
-                            <button 
-                                onClick={() => handleCompletar(orden)}
-                                className="btn btn-success w-100 fw-bold py-2 shadow-sm"
-                            >
-                                <i className="bi bi-check-lg me-2"></i>DESPACHAR
-                            </button>
+                        <div className="card-footer bg-white row g-1">
+                            <div className="col-6"><button onClick={() => handleImprimir(orden, 'cocina')} className="btn btn-secondary w-100 btn-sm">Comanda</button></div>
+                            <div className="col-6"><button onClick={() => handleImprimir(orden, 'cliente')} className="btn btn-outline-dark w-100 btn-sm">Factura</button></div>
+                            <div className="col-12"><button onClick={() => handleCompletar(orden._id)} className="btn btn-success w-100 fw-bold">DESPACHAR</button></div>
                         </div>
                     </div>
                 </div>
             ))}
-        </div>
-      )}
+      </div>
     </div>
   );
 }
