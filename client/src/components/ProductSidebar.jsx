@@ -14,10 +14,18 @@ export default function ProductSidebar({ product, isOpen, onClose }) {
 
   const handleAdd = (size, price) => {
     addToCart(product, size, price, cantidad);
-    // USAMOS TOAST SUCCESS
+    
+    // MODIFICACIÓN: Quitamos { icon: '🥢' } y usamos un icono de clase BI
     toast.success(
-      <span>Agregado: <b>{cantidad}x {product.nombre}</b> ({size})</span>,
-      { icon: '🥢' }
+      <div className="d-flex align-items-center">
+        {/* Icono de check circular en lugar de emoji */}
+        <i className="bi bi-check-circle-fill me-2 fs-5"></i> 
+        <span>Agregado: <b>{cantidad}x {product.nombre}</b> ({size})</span>
+      </div>,
+      { 
+        icon: null, // Desactivamos el icono por defecto de la librería para usar el nuestro
+        style: { border: '1px solid #198754', color: '#198754' } // Opcional: Estilo verde
+      }
     );
     onClose(); 
   };

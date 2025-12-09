@@ -177,8 +177,18 @@ export default function AdminDashboard() {
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2 className="fw-bold text-dark"><i className="bi bi-shield-lock-fill me-2"></i>Panel Yahn Hong</h2>
         <div className="d-flex gap-2">
-            <button className={`btn ${vista === 'dashboard' ? 'btn-dark' : 'btn-outline-dark'}`} onClick={() => setVista('dashboard')}>Control</button>
-            {isAdmin && <button className={`btn ${vista === 'reportes' ? 'btn-dark' : 'btn-outline-dark'}`} onClick={() => setVista('reportes')}>Reportes</button>}
+            {/* AGREGAMOS EL ICONO bi-speedometer2 */}
+            <button className={`btn ${vista === 'dashboard' ? 'btn-dark' : 'btn-outline-dark'}`} onClick={() => setVista('dashboard')}>
+                <i className="bi bi-speedometer2 me-2"></i>Control
+            </button>
+            
+            {isAdmin && (
+                /* AGREGAMOS EL ICONO bi-graph-up */
+                <button className={`btn ${vista === 'reportes' ? 'btn-dark' : 'btn-outline-dark'}`} onClick={() => setVista('reportes')}>
+                    <i className="bi bi-graph-up me-2"></i>Reportes
+                </button>
+            )}
+            
             <button className="btn btn-danger ms-2" onClick={handleLogout}><i className="bi bi-power"></i></button>
         </div>
       </div>
