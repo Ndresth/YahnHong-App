@@ -7,35 +7,64 @@ export default function OrdersPanel() {
   const [ordenes, setOrdenes] = useState([]);
   const [audioEnabled, setAudioEnabled] = useState(false); 
   
+  // Referencia para saber cuántas órdenes teníamos antes
   const prevOrdenesLength = useRef(0);
   
-  // VOLVEMOS AL ARCHIVO LOCAL
-  // Vite buscará esto en 'client/public/sounds/ding.mp3'
-  const audioRef = useRef(new Audio('ding.mp3')); 
+  // Referencia al archivo de audio
+  const audioRef = useRef(new Audio('/sounds/ding.mp3')); 
+
+  // --- FUNCIÓN PARA REPRODUCIR 3 VECES SEGUIDAS ---
+  const reproducirAlerta = async () => {
+    if (!audioRef.current) return;
+
+    // Intentamos reproducir el sonido 3 veces con un bucle
+    for (let i = 0; i < 3; i++) {
+        try {
+            // 1. Reseteamos el audio para evitar errores de "stuck"
+            audioRef.current.pause();
+            audioRef.current.currentTime = 0;
+            
+            // 2. Reproducimos
+            await audioRef.current.play();
+
+            // 3. Esperamos a que termine el sonido antes de seguir al siguiente ciclo
+            await new Promise(resolve => {
+                const onEnded = () => {
+                    audioRef.current.removeEventListener('ended', onEnded);
+                    resolve();
+                };
+                audioRef.current.addEventListener('ended', onEnded);
+            });
+
+            // 4. Pequeña pausa de medio segundo entre sonidos para que no se atropellen
+            await new Promise(r => setTimeout(r, 500));
+
+        } catch (error) {
+            console.error("Error en reproducción:", error);
+            break; // Si falla uno, detenemos el bucle
+        }
+    }
+  };
 
   const cargarPedidos = useCallback(() => {
     fetch('/api/orders') 
       .then(res => res.json())
       .then(data => {
-        // Lógica de detección de NUEVA orden
+        // DETECCIÓN DE NUEVA ORDEN
+        // Si la cantidad actual es mayor a la anterior, Y no es la primera carga (0)
         if (data.length > prevOrdenesLength.current && prevOrdenesLength.current !== 0) {
             
             if (audioEnabled) {
-                // Intentamos reproducir sonido
-                audioRef.current.currentTime = 0; 
-                const playPromise = audioRef.current.play();
-                
-                if (playPromise !== undefined) {
-                    playPromise.catch(error => {
-                        console.error("Audio bloqueado:", error);
-                    });
-                }
+                // LLAMAMOS A LA FUNCIÓN DE 3 REPETICIONES
+                reproducirAlerta();
+                toast('¡Nueva Orden! (x3)', { icon: '🔔', duration: 6000 });
             } else {
-                // Solo visual si no hay audio
+                // Si no hay audio activo, solo visual
                 toast('¡Nueva Orden en Cocina!', { icon: '🔔', duration: 5000 });
             }
         }
         
+        // Actualizamos el contador
         prevOrdenesLength.current = data.length;
         setOrdenes(data);
       })
@@ -48,16 +77,17 @@ export default function OrdersPanel() {
     return () => clearInterval(intervalo);
   }, [cargarPedidos]);
 
-  // ACTIVACIÓN MANUAL DEL SONIDO
+  // --- ACTIVAR SONIDO MANUALMENTE ---
   const enableAudio = () => {
+      // Forzamos un play/pause rápido para desbloquear el AudioContext del navegador
       audioRef.current.play().then(() => {
           audioRef.current.pause();
           audioRef.current.currentTime = 0;
           setAudioEnabled(true);
-          toast.success("Sonido Activado Correctamente");
+          toast.success("Sistema de Audio Activado");
       }).catch((e) => {
           console.error(e);
-          toast.error("Error: No se encuentra el archivo ding.mp3");
+          toast.error("Error: No se encuentra el archivo /sounds/ding.mp3");
       });
   };
 
@@ -88,6 +118,7 @@ export default function OrdersPanel() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ estado: 'Completado' })
         }).then(() => {
+            // Restamos 1 al contador local para que el próximo pedido sí cuente como "nuevo"
             prevOrdenesLength.current = Math.max(0, prevOrdenesLength.current - 1);
             cargarPedidos();
         }),
