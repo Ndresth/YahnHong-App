@@ -15,16 +15,23 @@ export default function ProductSidebar({ product, isOpen, onClose }) {
   const handleAdd = (size, price) => {
     addToCart(product, size, price, cantidad);
     
-    // MODIFICACIÓN: Quitamos { icon: '🥢' } y usamos un icono de clase BI
     toast.success(
       <div className="d-flex align-items-center">
-        {/* Icono de check circular en lugar de emoji */}
-        <i className="bi bi-check-circle-fill me-2 fs-5"></i> 
-        <span>Agregado: <b>{cantidad}x {product.nombre}</b> ({size})</span>
+        {/* Icono blanco para que se vea en el fondo verde */}
+        <i className="bi bi-check-circle-fill me-2 fs-4 text-white"></i> 
+        <div className="text-white"> {/* Aseguramos texto blanco */}
+            <span className="d-block lh-1">Agregado:</span>
+            <small className="fw-bold">{cantidad}x {product.nombre} ({size})</small>
+        </div>
       </div>,
       { 
-        icon: null, // Desactivamos el icono por defecto de la librería para usar el nuestro
-        style: { border: '1px solid #198754', color: '#198754' } // Opcional: Estilo verde
+        icon: null, // Desactivamos el icono por defecto
+        // Eliminamos el style que causaba el conflicto o forzamos el texto blanco
+        style: { 
+            background: '#198754', // Fondo Verde
+            color: '#fff',         // Texto Blanco (IMPORTANTE)
+            border: '1px solid #157347' 
+        } 
       }
     );
     onClose(); 
