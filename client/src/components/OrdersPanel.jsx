@@ -1,44 +1,41 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { printReceipt } from '../utils/printReceipt';
 import { swalBootstrap } from '../utils/swalConfig'; 
 import toast from 'react-hot-toast';
 
 export default function OrdersPanel() {
   const [ordenes, setOrdenes] = useState([]);
-  const [audioEnabled, setAudioEnabled] = useState(false); // Estado para saber si el audio está activo
+  const [audioEnabled, setAudioEnabled] = useState(false); 
   
-  // Referencias para mantener valores sin renderizar de nuevo
   const prevOrdenesLength = useRef(0);
-  const audioRef = useRef(new Audio('/sounds/ding.mp3')); // Asegúrate de crear este archivo
+  const audioRef = useRef(new Audio('/sounds/ding.mp3')); 
 
-  const cargarPedidos = () => {
+  // SOLUCIÓN: Usamos useCallback para estabilizar la función
+  const cargarPedidos = useCallback(() => {
     fetch('/api/orders') 
       .then(res => res.json())
       .then(data => {
         // LÓGICA DE ALERTA DE SONIDO
-        // Si hay más órdenes que antes, y no es la primera carga (0), suena la campana
         if (data.length > prevOrdenesLength.current && prevOrdenesLength.current !== 0) {
             if (audioEnabled) {
-                audioRef.current.currentTime = 0; // Reiniciar sonido si ya estaba sonando
+                audioRef.current.currentTime = 0; 
                 audioRef.current.play().catch(e => console.error("Error reproduciendo audio:", e));
             }
             toast('¡Nueva Orden en Cocina!', { icon: '🔔', duration: 4000 });
         }
         
-        // Actualizamos la referencia para la próxima comparación
         prevOrdenesLength.current = data.length;
         setOrdenes(data);
       })
       .catch(err => console.error(err));
-  };
+  }, [audioEnabled]); // Depende de audioEnabled
 
   useEffect(() => {
     cargarPedidos();
     const intervalo = setInterval(cargarPedidos, 5000); 
     return () => clearInterval(intervalo);
-  }, [audioEnabled]); // Dependencia agregada para que el intervalo lea el estado actualizado
+  }, [cargarPedidos]); // Ahora depende de la función misma
 
-  // Función para habilitar el audio (el navegador requiere interacción humana)
   const enableAudio = () => {
       audioRef.current.play().then(() => {
           audioRef.current.pause();
@@ -75,7 +72,6 @@ export default function OrdersPanel() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ estado: 'Completado' })
         }).then(() => {
-            // Ajustamos el contador para que no suene al recargar (porque bajó la cantidad)
             prevOrdenesLength.current = Math.max(0, prevOrdenesLength.current - 1);
             cargarPedidos();
         }),
