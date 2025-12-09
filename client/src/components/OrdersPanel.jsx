@@ -11,7 +11,7 @@ export default function OrdersPanel() {
   const prevOrdenesLength = useRef(0);
   
   // Referencia al archivo de audio
-  const audioRef = useRef(new Audio('/sounds/ding.mp3')); 
+  const audioRef = useRef(new Audio('ding.mp3')); 
 
   // --- FUNCIÓN PARA REPRODUCIR 3 VECES SEGUIDAS ---
   const reproducirAlerta = async () => {
