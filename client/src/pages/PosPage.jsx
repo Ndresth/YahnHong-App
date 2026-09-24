@@ -1,78 +1,56 @@
-import React, { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 import { useCart } from '../context/CartContext';
-import { Link, useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast'; // IMPORTAR
-import { swalBootstrap } from '../utils/swalConfig'; // IMPORTAR
-
-import ProductSidebar from '../components/ProductSidebar';
-import PosCartSidebar from '../components/PosCartSidebar';
-import HomeContent from '../components/HomeContent';
-
-const PosNavbar = ({ onOpenCart, totalItems, onLogout }) => (
-    // ... (Navbar igual que antes) ...
-    <nav className="navbar navbar-dark bg-dark sticky-top px-3 shadow">
-      <div className="d-flex align-items-center gap-3">
-        <Link to="/admin" className="btn btn-outline-light btn-sm" title="Panel Administrativo">
-            <i className="bi bi-gear-fill"></i>
-        </Link>
-        <span className="navbar-brand mb-0 h1 fw-bold d-none d-md-block">
-            <i className="bi bi-terminal me-2"></i>SISTEMA POS
-        </span>
-      </div>
-
-      <div className="d-flex gap-2">
-          <button onClick={onOpenCart} className="btn btn-success fw-bold">
-            <i className="bi bi-receipt me-2"></i>Cuenta <span className="badge bg-light text-dark ms-1">{totalItems}</span>
-          </button>
-          <button onClick={onLogout} className="btn btn-danger fw-bold" title="Cerrar Turno">
-            <i className="bi bi-power"></i>
-          </button>
-      </div>
-    </nav>
-);
+import { useProducts } from '../hooks/useProducts';
+import { useLiveEvents, useVisibleInterval } from '../hooks/useLiveEvents';
+import { api } from '../utils/api';
+import { money } from '../utils/format';
+import { TAMANO_CORTO } from '../config';
+import StaffNav from '../components/StaffNav';
+import MenuBrowser from '../components/MenuBrowser';
+import PosOrderPanel from '../components/PosOrderPanel';
 
 export default function PosPage() {
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const { cart } = useCart();
-  const navigate = useNavigate();
+  const { productos, loading, reload } = useProducts();
+  const { addToCart, totalItems, total } = useCart();
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [activas, setActivas] = useState([]);
 
-  const totalItems = cart.reduce((acc, item) => acc + item.quantity, 0);
+  const cargarActivas = useCallback(() => {
+    api('/api/orders').then(setActivas).catch(() => {});
+  }, []);
 
-  // ASYNC para SweetAlert
-  const handleLogout = async () => {
-    // REEMPLAZO WINDOW.CONFIRM
-    const result = await swalBootstrap.fire({
-        title: '¿Cerrar Sesión?',
-        text: "Se cerrará el turno actual en este dispositivo.",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Sí, Cerrar Turno',
-        cancelButtonText: 'Cancelar'
-    });
+  const live = useLiveEvents((type) => {
+    if (type === 'conectado' || type.startsWith('orden:') || type === 'caja:cerrada') cargarActivas();
+  });
+  useVisibleInterval(() => { cargarActivas(); reload(); }, 60000);
 
-    if(result.isConfirmed) {
-        localStorage.clear();
-        navigate('/login');
-        toast.success("Turno cerrado correctamente.");
-    }
+  const mesasOcupadas = useMemo(
+    () => new Set(activas.filter(o => o.tipo === 'Mesa').map(o => String(o.numeroMesa))),
+    [activas]
+  );
+
+  const handleAdd = (p, size, price) => {
+    addToCart(p, size, price, 1);
+    toast.success(`${p.nombre} ${TAMANO_CORTO[size] ? `(${TAMANO_CORTO[size]})` : ''}`, { id: 'pos-add', duration: 900 });
   };
 
   return (
-    <div style={{backgroundColor: '#f8f9fa', minHeight: '100vh'}}>
-      <PosNavbar 
-        onOpenCart={() => setIsCartOpen(true)} 
-        totalItems={totalItems} 
-        onLogout={handleLogout} 
-      />
-      <HomeContent onSelectProduct={setSelectedProduct} />
-      <PosCartSidebar isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
-      <ProductSidebar 
-        key={selectedProduct ? selectedProduct.id : 'empty'} 
-        product={selectedProduct} 
-        isOpen={!!selectedProduct} 
-        onClose={() => setSelectedProduct(null)} 
-      />
+    <div>
+      <StaffNav live={live} />
+      <div className="pos-layout">
+        <div className="pos-menu">
+          <MenuBrowser productos={productos} loading={loading} variant="pos" onAdd={handleAdd} />
+        </div>
+        <PosOrderPanel open={panelOpen} onClose={() => setPanelOpen(false)} mesasOcupadas={mesasOcupadas} onSent={cargarActivas} />
+      </div>
+
+      <div className="pos-bottom-bar">
+        <button className="btn btn-success w-100 py-3 fw-bold d-flex justify-content-between align-items-center rounded-3" onClick={() => setPanelOpen(true)}>
+          <span><i className="bi bi-receipt me-2"></i>Ver cuenta <span className="badge bg-light text-success ms-1">{totalItems}</span></span>
+          <span>{money(total)}</span>
+        </button>
+      </div>
     </div>
   );
 }
