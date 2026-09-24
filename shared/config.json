@@ -1,0 +1,14 @@
+{
+  "_comentario": "Configuración compartida por el servidor (validación) y el cliente (pantallas). Editar solo aquí.",
+  "categoriaBebidas": "Bebidas",
+  "desechables": [
+    { "key": "cucharas", "nombre": "Cucharas", "item": "Cuchara", "icon": "bi-cup-straw", "precio": 0, "max": 6 },
+    { "key": "platos", "nombre": "Platos", "item": "Plato desechable", "icon": "bi-circle", "precio": 300, "max": 10 },
+    { "key": "vasos", "nombre": "Vasos", "item": "Vaso", "icon": "bi-cup", "precio": 0, "max": 6, "soloConBebida": true }
+  ],
+  "horario": {
+    "zona": "America/Bogota",
+    "normal": { "abre": "11:30", "cierra": "20:00" },
+    "domingoFestivo": { "abre": "11:30", "cierra": "20:00" }
+  }
+}
