@@ -41,7 +41,6 @@
   { "id": 73, "categoria": "Bebidas", "nombre": "Postobon Litron", "descripcion": "Gaseosa litron", "precios": { "unico": 6000 }, "imagen": "/images/Manzana-1.25-retornable.jpg" },
   { "id": 74, "categoria": "Bebidas", "nombre": "Coca Cola Litro", "descripcion": "Original", "precios": { "unico": 6000 }, "imagen": "/images/9_col_ccso_navidad_1_litro_glass.jpg" },
   { "id": 75, "categoria": "Bebidas", "nombre": "Coca Cola 1.5", "descripcion": "Original", "precios": { "unico": 9000 }, "imagen": "/images/Cocacolaunopcinco.jpg" },
-  { "id": 76, "categoria": "Bebidas", "nombre": "Cerveza", "descripcion": "Preguntar por disponibilidad", "precios": { "unico": 3000 }, "imagen": "/images/cerveza-aguila-x355ml-original.jpg" },
   { "id": 80, "categoria": "Porciones", "nombre": "De Papa Francesa", "descripcion": "Porción", "precios": { "unico": 7000 }, "imagen": "/images/Papas.jpg" },
   { "id": 81, "categoria": "Porciones", "nombre": "De Ensalada", "descripcion": "Porción", "precios": { "unico": 5000 }, "imagen": "/images/Ensalada.jpg" },
   { "id": 82, "categoria": "Porciones", "nombre": "De Arroz", "descripcion": "Porción", "precios": { "unico": 5000 }, "imagen": "/images/Arroz.jpg" },
