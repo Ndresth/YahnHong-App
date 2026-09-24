@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 
+const TAMANOS = ['familiar', 'mediano', 'personal', 'unico'];
+
 /**
  * Esquema de Producto (Inventario).
  * Define la estructura de datos para los ítems disponibles en el menú.
@@ -11,7 +13,8 @@ const ProductSchema = new mongoose.Schema({
   nombre: { type: String, required: true },
   descripcion: { type: String }, // Detalle de ingredientes o preparación
   imagen: { type: String }, // URL del recurso estático
-  
+  disponible: { type: Boolean, default: true }, // false = Agotado
+
   // Estructura de precios según tamaño
   precios: {
     familiar: { type: Number, default: 0 },
@@ -22,3 +25,4 @@ const ProductSchema = new mongoose.Schema({
 });
 
 module.exports = mongoose.model('Product', ProductSchema);
+module.exports.TAMANOS = TAMANOS;

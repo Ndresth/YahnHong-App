@@ -1,97 +1,64 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+import toast from 'react-hot-toast';
 import { useCart } from '../context/CartContext';
-import toast from 'react-hot-toast'; // IMPORTAR TOAST
+import { PLACEHOLDER_IMG, TAMANO_LABEL } from '../config';
+import { money, preciosActivos } from '../utils/format';
 
-// Eliminamos onNotify de las props porque ya no lo necesitamos
-export default function ProductSidebar({ product, isOpen, onClose }) {
+/** Detalle de producto del menú público: cantidad + selección de tamaño. */
+export default function ProductSidebar({ product, onClose }) {
   const { addToCart } = useCart();
   const [cantidad, setCantidad] = useState(1);
-
-  if (!product) return null;
-
-  const decrementar = () => { if (cantidad > 1) setCantidad(cantidad - 1); };
-  const incrementar = () => setCantidad(cantidad + 1);
+  const isOpen = Boolean(product);
 
   const handleAdd = (size, price) => {
     addToCart(product, size, price, cantidad);
-    
-    toast.success(
-      <div className="d-flex align-items-center">
-        {/* Icono blanco para que se vea en el fondo verde */}
-        <i className="bi bi-check-circle-fill me-2 fs-4 text-white"></i> 
-        <div className="text-white"> {/* Aseguramos texto blanco */}
-            <span className="d-block lh-1">Agregado:</span>
-            <small className="fw-bold">{cantidad}x {product.nombre} ({size})</small>
-        </div>
-      </div>,
-      { 
-        icon: null, // Desactivamos el icono por defecto
-        // Eliminamos el style que causaba el conflicto o forzamos el texto blanco
-        style: { 
-            background: '#198754', // Fondo Verde
-            color: '#fff',         // Texto Blanco (IMPORTANTE)
-            border: '1px solid #157347' 
-        } 
-      }
-    );
-    onClose(); 
+    toast.success(<span>Agregado: <b>{cantidad}x {product.nombre}</b></span>, { icon: '🥢' });
+    onClose();
   };
 
-  // ... (El resto del return sigue igual)
   return (
     <>
-      {isOpen && <div className="modal-backdrop fade show" onClick={onClose} style={{zIndex: 1060}}></div>}
-      <div className={`offcanvas offcanvas-end bg-white ${isOpen ? 'show' : ''}`} tabIndex="-1" 
-           style={{ visibility: isOpen ? 'visible' : 'hidden', zIndex: 1070 }}>
-        
-        <div className="offcanvas-header bg-dark text-white">
-          <h5 className="offcanvas-title fw-bold"><i className="bi bi-box-seam me-2"></i>Detalle de Producto</h5>
-          <button type="button" className="btn-close btn-close-white" onClick={onClose}></button>
-        </div>
-
-        <div className="offcanvas-body">
-            <div className="text-center mb-4">
-                <img 
-                    src={product.imagen || "https://via.placeholder.com/300?text=Sin+Foto"} 
-                    alt={product.nombre}
-                    className="rounded shadow-sm border"
-                    style={{width: '100%', maxHeight: '250px', objectFit: 'cover'}}
-                />
+      {isOpen && <div className="side-backdrop" style={{ zIndex: 1060 }} onClick={onClose}></div>}
+      <aside className={`side-panel ${isOpen ? 'open' : ''}`} style={{ zIndex: 1070 }} aria-hidden={!isOpen}>
+        {product && (
+          <>
+            <div className="position-relative">
+              <img src={product.imagen || PLACEHOLDER_IMG} alt={product.nombre} className="w-100" style={{ height: 240, objectFit: 'cover' }}
+                onError={e => { e.currentTarget.src = PLACEHOLDER_IMG; }} />
+              <button className="btn btn-light rounded-circle position-absolute top-0 end-0 m-2 shadow-sm" onClick={onClose} aria-label="Cerrar">
+                <i className="bi bi-x-lg"></i>
+              </button>
             </div>
+            <div className="p-3 overflow-auto flex-grow-1">
+              <h4 className="fw-bold mb-1">{product.nombre}</h4>
+              <p className="text-muted small">{product.descripcion}</p>
 
-            <h3 className="fw-bold text-dark mb-1">{product.nombre}</h3>
-            <p className="text-muted small mb-4">{product.descripcion}</p>
-            
-            <div className="d-flex align-items-center justify-content-between mb-4 p-3 bg-light rounded border">
-                <span className="fw-bold">Cantidad:</span>
-                <div className="d-flex align-items-center gap-3">
-                    <button onClick={decrementar} className="btn btn-outline-secondary rounded-circle btn-sm p-2"><i className="bi bi-dash"></i></button>
-                    <span className="fs-4 fw-bold text-dark" style={{minWidth: '40px', textAlign:'center'}}>{cantidad}</span>
-                    <button onClick={incrementar} className="btn btn-dark rounded-circle btn-sm p-2"><i className="bi bi-plus"></i></button>
+              <div className="d-flex align-items-center justify-content-between my-3 p-2 bg-light rounded-3">
+                <span className="fw-semibold ps-1">Cantidad</span>
+                <div className="qty-control bg-white">
+                  <button onClick={() => setCantidad(c => Math.max(1, c - 1))} aria-label="Menos">−</button>
+                  <span>{cantidad}</span>
+                  <button onClick={() => setCantidad(c => Math.min(99, c + 1))} aria-label="Más">+</button>
                 </div>
-            </div>
+              </div>
 
-            <h6 className="fw-bold mb-3 text-secondary">Seleccione presentación:</h6>
-            <div className="d-grid gap-2">
-                {Object.entries(product.precios).map(([size, price]) => {
-                    if (price <= 0) return null;
-                    return (
-                      <button 
-                          key={size} 
-                          onClick={() => handleAdd(size, price)}
-                          className="btn btn-outline-dark d-flex justify-content-between p-3 align-items-center shadow-sm border-secondary-subtle"
-                      >
-                          <div className="text-start">
-                              <span className="text-uppercase fw-bold d-block">{size}</span>
-                              <small className="text-muted" style={{fontSize: '0.75rem'}}>Precio unitario</small>
-                          </div>
-                          <span className="fs-5 fw-bold">${(price * cantidad).toLocaleString()}</span>
-                      </button>
-                    );
-                })}
+              <h6 className="fw-bold text-secondary mb-2">Elige el tamaño</h6>
+              <div className="d-grid gap-2">
+                {preciosActivos(product).map(([size, price]) => (
+                  <button key={size} onClick={() => handleAdd(size, price)}
+                    className="btn btn-outline-dark d-flex justify-content-between align-items-center p-3 rounded-3">
+                    <span className="text-start">
+                      <span className="fw-bold d-block">{TAMANO_LABEL[size]}</span>
+                      <small className="text-muted">{money(price)} c/u</small>
+                    </span>
+                    <span className="fs-5 fw-bold">{money(price * cantidad)} <i className="bi bi-plus-circle-fill text-danger ms-1"></i></span>
+                  </button>
+                ))}
+              </div>
             </div>
-        </div>
-      </div>
+          </>
+        )}
+      </aside>
     </>
   );
 }

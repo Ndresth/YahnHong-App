@@ -1,144 +1,192 @@
 /**
- * Utilidad de generación de tickets para impresoras térmicas.
+ * Impresión de tickets para impresoras térmicas (58mm / 80mm).
+ *
+ * Problemas que corrige respecto a la versión anterior:
+ *  - Usa un iframe oculto en vez de ventana emergente (no lo bloquea el navegador).
+ *  - Ancho en milímetros según el papel: antes el ticket medía ~320px y se cortaba en 58mm.
+ *  - Las notas de cocina ya no usan fondo negro (la mayoría de drivers no imprimen fondos
+ *    y la nota salía en blanco).
+ *  - Todo el texto se escapa (antes un nombre con HTML se ejecutaba en el equipo de caja).
+ *  - Imprime la fecha y número real de la orden, no la hora de impresión.
  */
-export const printReceipt = (cart, total, client, type = 'cliente', ordenInfo = {}) => {
-    // Configuración de ventana
-    const receiptWindow = window.open('', '', 'width=360,height=600');
-    const date = new Date().toLocaleString('es-CO');
-    
-    // --- ESTILOS OPTIMIZADOS PARA POS ---
-    const styles = `
-        <style>
-            /* Configuración crítica para impresoras térmicas */
-            @page { 
-                size: auto;   /* auto is the initial value */
-                margin: 0mm;  /* this affects the margin in the printer settings */
-            }
+import { NEGOCIO, TAMANO_LABEL } from '../config';
 
-            body { 
-                font-family: 'Courier New', monospace; 
-                margin: 5mm; /* Margen interno de seguridad para el contenido */
-                padding: 0; 
-                color: #000;
-                width: 100%;
-                max-width: 300px; /* Ancho típico para 80mm, ajustar a 58mm si es necesario (aprox 180px) */
-            }
+const SETTINGS_KEY = 'printSettings';
+const DEFAULTS = { ancho: 80, autoComandaPos: false, autoComandaCocina: false, copiasCocina: 1 };
 
-            .text-center { text-align: center; }
-            .text-right { text-align: right; }
-            .fw-bold { font-weight: bold; }
-            .fs-sm { font-size: 12px; }
-            .fs-md { font-size: 14px; }
-            .fs-lg { font-size: 18px; }
-            .fs-xl { font-size: 22px; }
-            
-            .divider { border-bottom: 1px dashed #000; margin: 8px 0; }
-            .divider-solid { border-bottom: 2px solid #000; margin: 8px 0; }
-            
-            .item-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 14px; }
-            .col-qty { width: 15%; font-weight: bold; }
-            .col-desc { width: 60%; }
-            .col-price { width: 25%; text-align: right; }
-            
-            /* COCINA */
-            .kitchen-item { font-size: 20px; font-weight: bold; line-height: 1.1; margin-bottom: 15px; }
-            .kitchen-note { display: block; font-size: 16px; margin-top: 4px; background: #000; color: #fff; padding: 2px 6px; }
-            .order-type-box { border: 2px solid #000; padding: 8px; font-size: 24px; font-weight: 900; margin: 15px 0; text-transform: uppercase; }
-            .delivery-info { border: 1px solid #000; padding: 5px; margin-top: 5px; font-size: 14px; }
-        </style>
+export const getPrintSettings = () => {
+    try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') }; }
+    catch { return { ...DEFAULTS }; }
+};
+
+export const setPrintSettings = (partial) => {
+    const next = { ...getPrintSettings(), ...partial };
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
+    return next;
+};
+
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const money = (n) => `$${Number(n || 0).toLocaleString('es-CO')}`;
+const fecha = (d) => new Date(d || Date.now()).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' });
+const tamano = (t) => TAMANO_LABEL[t] || t || '';
+
+const tituloTipo = (o) => {
+    if (o.tipo === 'Mesa') return `MESA ${esc(o.numeroMesa)}`;
+    if (o.tipo === 'Llevar') return o.origen === 'Web' ? 'RECOGER EN LOCAL' : 'PARA LLEVAR';
+    return 'DOMICILIO';
+};
+
+const horaProg = (o) => new Date(o.horaProgramada).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' });
+
+const styles = (ancho) => {
+    const contenido = ancho === 58 ? 48 : 72; // Área imprimible real de cada rollo
+    return `
+    @page { size: ${ancho}mm auto; margin: 0; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #fff; }
+    body {
+        width: ${contenido}mm; margin: 0 auto; padding: 2mm 0 6mm;
+        font-family: 'Courier New', Courier, monospace; color: #000;
+        font-size: ${ancho === 58 ? 11 : 13}px; line-height: 1.25;
+        -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    }
+    .c { text-align: center; } .r { text-align: right; } .b { font-weight: bold; }
+    .sm { font-size: 0.85em; } .lg { font-size: 1.3em; } .xl { font-size: 1.6em; }
+    .hr { border-top: 1px dashed #000; margin: 2mm 0; }
+    .hr2 { border-top: 2px solid #000; margin: 2mm 0; }
+    table { width: 100%; border-collapse: collapse; }
+    td { vertical-align: top; padding: 0.6mm 0; }
+    td.q { width: 9%; font-weight: bold; } td.p { width: 30%; text-align: right; white-space: nowrap; }
+    .box { border: 2px solid #000; padding: 1.5mm; margin: 2mm 0; font-size: 1.7em; font-weight: 900; text-align: center; }
+    .item { font-size: 1.35em; font-weight: bold; margin: 2mm 0 1mm; word-wrap: break-word; }
+    .nota { border: 1.5px solid #000; border-left-width: 5px; padding: 1mm 1.5mm; font-size: 0.8em; margin-top: 1mm; }
+    .row { display: flex; justify-content: space-between; gap: 2mm; }
     `;
+};
 
-    // LÓGICA DE TÍTULO PARA COCINA
-    let tituloComanda = "DOMICILIO";
-    if (ordenInfo.tipo === 'Mesa') tituloComanda = `MESA ${ordenInfo.numero}`;
-    if (ordenInfo.tipo === 'Llevar') tituloComanda = "PARA LLEVAR";
+const facturaHtml = (o) => `
+    <div class="c">
+        <div class="lg b">${esc(NEGOCIO.nombre)}</div>
+        <div class="sm">NIT: ${esc(NEGOCIO.nit)}</div>
+        <div class="sm">${esc(NEGOCIO.direccion)}</div>
+        <div class="sm">Tel: ${esc(NEGOCIO.telefono)}</div>
+    </div>
+    <div class="hr"></div>
+    <div class="row b"><span>ORDEN ${o.numero ? `#${esc(o.numero)}` : ''}</span><span>${tituloTipo(o)}</span></div>
+    <div class="sm">FECHA: ${esc(fecha(o.fecha))}</div>
+    <div class="sm">CLIENTE: ${esc(o.cliente?.nombre)}</div>
+    ${o.tipo !== 'Mesa' && o.cliente?.telefono ? `<div class="sm">TEL: ${esc(o.cliente.telefono)}</div>` : ''}
+    ${o.tipo === 'Domicilio' ? `<div class="sm">DIR: ${esc(o.cliente?.direccion)}</div>` : ''}
+    ${o.horaProgramada ? `<div class="b">PROGRAMADO: ${esc(horaProg(o))}</div>` : ''}
+    <div class="hr"></div>
+    <table>
+        ${(o.items || []).map(i => `
+            <tr>
+                <td class="q">${esc(i.cantidad)}</td>
+                <td>${esc(i.nombre)}<div class="sm">${i.extra ? (i.precio ? money(i.precio) : 'Sin costo') : `${esc(tamano(i.tamaño))} · ${money(i.precio)}`}</div></td>
+                <td class="p">${money(i.precio * i.cantidad)}</td>
+            </tr>`).join('')}
+    </table>
+    <div class="hr2"></div>
+    <div class="row xl b"><span>TOTAL</span><span>${money(o.total)}</span></div>
+    <div class="sm">PAGO: ${esc(o.cliente?.metodoPago || 'Efectivo')}</div>
+    ${o.tipo === 'Domicilio' ? '<div class="c b" style="margin-top:2mm">* Valor del domicilio no incluido</div>' : ''}
+    <div class="c sm" style="margin-top:4mm">¡Gracias por su compra!</div>
+`;
 
-    // --- PLANTILLA CLIENTE (FACTURA) ---
-    const customerTemplate = `
-        <div class="text-center">
-            <div class="fs-lg fw-bold">YAHN HONG</div>
-            <div class="fs-sm">NIT: 22504696-1</div>
-            <div class="fs-sm">Calle 45 # 2B - 09</div>
-            <div class="fs-sm">Tel: 3022297929</div>
-            <div class="divider"></div>
-            <div class="text-left fs-sm">
-                FECHA: ${date}<br/>
-                CLIENTE: ${client.nombre}<br/>
-                DIR: ${client.direccion || 'Local'}
-            </div>
-            <div class="divider"></div>
+const comandaHtml = (o) => `
+    <div class="row sm"><span>${esc(fecha(o.fecha))}</span><span>${o.numero ? `#${esc(o.numero)}` : ''}</span></div>
+    <div class="box">${tituloTipo(o)}</div>
+    ${o.horaProgramada ? `<div class="box">PARA LAS ${esc(horaProg(o))}</div>` : ''}
+    ${o.tipo !== 'Mesa' ? `<div class="lg b">${esc(o.cliente?.nombre)}</div>` : ''}
+    ${o.tipo === 'Domicilio' ? `
+        <div class="sm" style="border:1px solid #000;padding:1mm;margin-top:1mm">
+            DIR: ${esc(o.cliente?.direccion)}<br/>TEL: ${esc(o.cliente?.telefono)}<br/>PAGO: ${esc(o.cliente?.metodoPago)}
+        </div>` : ''}
+    ${o.tipo === 'Llevar' && o.cliente?.telefono ? `<div class="sm">TEL: ${esc(o.cliente.telefono)}</div>` : ''}
+    <div class="hr2"></div>
+    ${(o.items || []).map(i => `
+        <div class="item">${esc(i.cantidad)} x ${esc(i.nombre)} ${i.extra ? '' : `<span class="sm" style="font-weight:normal">(${esc(tamano(i.tamaño))})</span>`}
+            ${i.nota ? `<div class="nota">NOTA: ${esc(i.nota.toUpperCase())}</div>` : ''}
         </div>
+        <div class="hr"></div>`).join('')}
+    ${o.usuario ? `<div class="sm">Tomó: ${esc(o.usuario)}</div>` : ''}
+    <div class="c b" style="margin-top:3mm;border-top:3px double #000;padding-top:1mm">FIN COMANDA</div>
+`;
 
-        <div>
-            ${cart.map(item => `
-                <div class="item-row">
-                    <div class="col-qty">${item.quantity}</div>
-                    <div class="col-desc">${item.nombre} <br/><span class="fs-sm fw-normal">(${item.selectedSize})</span></div>
-                    <div class="col-price">$${(item.selectedPrice * item.quantity).toLocaleString()}</div>
-                </div>
-            `).join('')}
-        </div>
+const isMobile = () => /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-        <div class="divider-solid"></div>
-        
-        <div class="text-right fs-xl fw-bold">
-            TOTAL: $${Number(total).toLocaleString()}
-        </div>
+/** Imprime un documento HTML sin abrir ventanas nuevas (iframe oculto). */
+const printHtml = (html) => {
+    // En celulares/tablets el iframe no siempre imprime su propio contenido: usamos ventana nueva.
+    if (isMobile()) {
+        const w = window.open('', '_blank');
+        if (w) {
+            w.document.open(); w.document.write(html); w.document.close();
+            w.addEventListener('afterprint', () => w.close());
+            setTimeout(() => { w.focus(); w.print(); }, 250);
+            return;
+        }
+    }
 
-        ${ordenInfo.tipo === 'Domicilio' ? `
-            <div class="text-center fw-bold fs-md" style="margin-top: 10px;">
-                * Valor del domicilio pendiente
-            </div>
-        ` : ''}
-        
-        <div class="text-center fs-sm" style="margin-top: 20px;">Gracias por su compra.</div>
-        <br/><br/>. `;
+    const frame = document.createElement('iframe');
+    frame.setAttribute('aria-hidden', 'true');
+    Object.assign(frame.style, { position: 'fixed', right: '0', bottom: '0', width: '0', height: '0', border: '0', visibility: 'hidden' });
+    document.body.appendChild(frame);
 
-    // --- PLANTILLA COCINA (COMANDA) ---
-    const kitchenTemplate = `
-        <div class="text-center">
-            <div class="fs-sm">${date}</div>
-            
-            <div class="order-type-box">${tituloComanda}</div>
-            
-            <div class="text-left fw-bold fs-lg">CLIENTE: ${client.nombre}</div>
+    const cleanup = () => setTimeout(() => frame.remove(), 500);
+    const doc = frame.contentWindow.document;
+    doc.open(); doc.write(html); doc.close();
 
-            ${ordenInfo.tipo === 'Domicilio' ? `
-                <div class="delivery-info text-left">
-                    <div>DIR: ${client.direccion || 'N/A'}</div>
-                    <div>TEL: ${client.telefono || 'N/A'}</div>
-                    <div>PAGO: ${client.metodoPago || 'Efectivo'}</div>
-                </div>
-            ` : ''}
+    // Espera a que el navegador maquete el documento antes de imprimir
+    setTimeout(() => {
+        try {
+            frame.contentWindow.addEventListener('afterprint', cleanup);
+            frame.contentWindow.focus();
+            frame.contentWindow.print();
+        } finally {
+            setTimeout(cleanup, 60000); // Respaldo por si 'afterprint' no se dispara
+        }
+    }, 150);
+};
 
-            <div class="divider-solid"></div>
-        </div>
+/**
+ * Imprime una orden tal como la devuelve el servidor.
+ * @param {Object} orden - Documento de la orden (items con cantidad, precio, tamaño, nota)
+ * @param {'cliente'|'cocina'} modo
+ */
+export const printOrder = (orden, modo = 'cliente') => {
+    const { ancho, copiasCocina } = getPrintSettings();
+    const body = modo === 'cocina'
+        ? Array.from({ length: Math.max(1, copiasCocina) }, () => comandaHtml(orden)).join('<div style="break-after:page"></div>')
+        : facturaHtml(orden);
+    const titulo = `${modo === 'cocina' ? 'Comanda' : 'Factura'} ${orden.numero ? '#' + orden.numero : ''}`;
+    printHtml(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(titulo)}</title><style>${styles(Number(ancho))}</style></head><body>${body}</body></html>`);
+};
 
-        <div style="margin-top: 15px;">
-            ${cart.map(item => `
-                <div class="kitchen-item">
-                    ${item.quantity} X ${item.nombre} 
-                    <span style="font-size: 16px; font-weight: normal;">(${item.selectedSize})</span>
-                    ${item.nota ? `<span class="kitchen-note">NOTA: ${item.nota.toUpperCase()}</span>` : ''}
-                </div>
-                <div class="divider" style="opacity: 0.5;"></div>
-            `).join('')}
-        </div>
-        
-        <div class="text-center fw-bold fs-lg" style="margin-top: 20px; border-top: 3px double #000;">FIN COMANDA</div>
-        <br/><br/>. `;
-
-    const bodyContent = type === 'cocina' ? kitchenTemplate : customerTemplate;
-    const html = `<html><head><title>Imprimir</title>${styles}</head><body>${bodyContent}</body></html>`;
-
-    receiptWindow.document.write(html);
-    receiptWindow.document.close();
-    
-    // Esperamos un poco más para asegurar que los estilos carguen antes de imprimir
-    setTimeout(() => { 
-        receiptWindow.focus(); 
-        receiptWindow.print(); 
-        // Opcional: cerrar ventana después de imprimir (algunos navegadores bloquean esto si no es acción directa)
-        // receiptWindow.close(); 
-    }, 500);
+/** Imprime el resumen del cierre de caja (reporte Z) en la térmica. */
+export const printCierre = (cierre) => {
+    const { ancho } = getPrintSettings();
+    const metodos = Object.entries(cierre.ventasPorMetodo || {});
+    const d = cierre.diferencia || 0;
+    const body = `
+        <div class="c"><div class="lg b">${esc(NEGOCIO.nombre)}</div><div class="b">CIERRE DE CAJA</div></div>
+        <div class="hr"></div>
+        <div class="sm">INICIO: ${esc(fecha(cierre.fechaInicio))}</div>
+        <div class="sm">CIERRE: ${esc(fecha(cierre.fechaFin))}</div>
+        <div class="sm">CERRÓ: ${esc(cierre.usuario)}</div>
+        <div class="hr"></div>
+        ${metodos.map(([m, v]) => `<div class="row"><span>${esc(m)}</span><span>${money(v)}</span></div>`).join('')}
+        <div class="hr"></div>
+        <div class="row b"><span>TOTAL VENTAS</span><span>${money(cierre.totalVentasSistema)}</span></div>
+        <div class="row"><span>Pedidos</span><span>${esc(cierre.cantidadPedidos)}</span></div>
+        ${cierre.cantidadCancelados ? `<div class="row"><span>Anulados</span><span>${esc(cierre.cantidadCancelados)}</span></div>` : ''}
+        <div class="row"><span>Gastos</span><span>-${money(cierre.totalGastos)}</span></div>
+        <div class="hr2"></div>
+        <div class="row b"><span>EFECTIVO ESPERADO</span><span>${money(cierre.totalCajaTeorico)}</span></div>
+        <div class="row b"><span>EFECTIVO CONTADO</span><span>${money(cierre.totalEfectivoReal)}</span></div>
+        <div class="box" style="font-size:1.2em">${d === 0 ? 'CUADRA' : d > 0 ? `SOBRANTE ${money(d)}` : `FALTANTE ${money(-d)}`}</div>
+        <div class="c sm" style="margin-top:6mm">Firma: ______________________</div>
+    `;
+    printHtml(`<!doctype html><html><head><meta charset="utf-8"><title>Cierre de caja</title><style>${styles(Number(ancho))}</style></head><body>${body}</body></html>`);
 };

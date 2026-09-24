@@ -1,0 +1,63 @@
+name: Respaldo semanal de la BD
+
+# Lunes 6:00 a. m. (Colombia) y cuando se ejecute a mano desde la pestaña Actions.
+# El repositorio es PÚBLICO: el respaldo se sube CIFRADO (AES-256) con BACKUP_PASSWORD.
+# Requiere los secretos MONGO_URI y BACKUP_PASSWORD (Settings → Secrets and variables → Actions).
+on:
+  schedule:
+    - cron: '0 11 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  respaldo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      MONGO_URI: ${{ secrets.MONGO_URI }}
+      BACKUP_PASSWORD: ${{ secrets.BACKUP_PASSWORD }}
+    steps:
+      - name: Verificar secretos
+        id: secretos
+        run: |
+          if [ -z "$MONGO_URI" ] || [ -z "$BACKUP_PASSWORD" ]; then
+            echo "::warning::Faltan los secretos MONGO_URI y/o BACKUP_PASSWORD. No se hizo respaldo."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+            echo "fecha=$(TZ=America/Bogota date +%F)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.secretos.outputs.ok == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.secretos.outputs.ok == 'true'
+        with:
+          node-version: 22
+
+      - name: Instalar dependencias del servidor
+        if: steps.secretos.outputs.ok == 'true'
+        working-directory: server
+        run: npm ci --omit=dev
+
+      - name: Exportar y cifrar
+        if: steps.secretos.outputs.ok == 'true'
+        working-directory: server
+        run: |
+          node scripts/respaldo.js "$RUNNER_TEMP/respaldo.json"
+          gzip -9 "$RUNNER_TEMP/respaldo.json"
+          openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt \
+            -in "$RUNNER_TEMP/respaldo.json.gz" \
+            -out "$RUNNER_TEMP/respaldo-${{ steps.secretos.outputs.fecha }}.json.gz.enc" \
+            -pass env:BACKUP_PASSWORD
+          rm "$RUNNER_TEMP/respaldo.json.gz"
+
+      - uses: actions/upload-artifact@v4
+        if: steps.secretos.outputs.ok == 'true'
+        with:
+          name: respaldo-${{ steps.secretos.outputs.fecha }}
+          path: ${{ runner.temp }}/respaldo-*.json.gz.enc
+          retention-days: 90
+          if-no-files-found: error
