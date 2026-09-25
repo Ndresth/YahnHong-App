@@ -5,6 +5,10 @@ import { api } from '../../utils/api';
 import { hora, money } from '../../utils/format';
 import { printOrder } from '../../utils/printReceipt';
 import { METODOS_PAGO, TAMANO_LABEL } from '../../config';
+import PagoDividido from '../PagoDividido';
+import { pagosDe, textoPago, partesCompletas, pagoDivididoValido } from '../../utils/pagos';
+
+const DIVIDIR = '__dividir';
 
 const ESTADO_BADGE = {
   Pendiente: 'bg-secondary', Preparando: 'bg-primary', Listo: 'bg-success',
@@ -15,6 +19,7 @@ const ESTADO_BADGE = {
 export default function OrdenesTurno({ ordenes, onChange }) {
   const [q, setQ] = useState('');
   const [abierta, setAbierta] = useState(null);
+  const [dividiendo, setDividiendo] = useState(null); // { id, partes }
 
   const visibles = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -26,6 +31,26 @@ export default function OrdenesTurno({ ordenes, onChange }) {
     try {
       await api(`/api/orders/${o._id}/pago`, { method: 'PATCH', body: { metodoPago } });
       toast.success(`Orden #${o.numero}: ${metodoPago}`);
+      onChange();
+    } catch (e) { toast.error(e.message); }
+  };
+
+  const abrirDivision = (o) => {
+    const actuales = pagosDe(o);
+    setDividiendo({
+      id: o._id,
+      partes: actuales.length > 1
+        ? actuales.map(p => ({ metodo: p.metodo, monto: String(p.monto) }))
+        : [{ metodo: actuales[0].metodo, monto: '' }, { metodo: actuales[0].metodo === 'Nequi' ? 'Efectivo' : 'Nequi', monto: '' }]
+    });
+  };
+
+  const guardarDivision = async (o) => {
+    if (!pagoDivididoValido(dividiendo.partes, o.total)) { toast.error('Cada parte debe ser mayor a 0 y sin métodos repetidos'); return; }
+    try {
+      await api(`/api/orders/${o._id}/pago`, { method: 'PATCH', body: { pagos: partesCompletas(dividiendo.partes, o.total) } });
+      toast.success(`Orden #${o.numero}: pago dividido`);
+      setDividiendo(null);
       onChange();
     } catch (e) { toast.error(e.message); }
   };
@@ -71,10 +96,16 @@ export default function OrdenesTurno({ ordenes, onChange }) {
                     <td><span className={`badge ${ESTADO_BADGE[o.estado] || 'bg-secondary'}`}>{o.estado}</span></td>
                     <td>
                       <select className="form-select form-select-sm" style={{ minWidth: 120 }} disabled={cancelada}
-                        value={METODOS_PAGO.some(m => m.id === o.cliente?.metodoPago) ? o.cliente.metodoPago : 'Efectivo'}
-                        onChange={e => cambiarPago(o, e.target.value)}>
+                        value={o.pagos?.length ? DIVIDIR : METODOS_PAGO.some(m => m.id === o.cliente?.metodoPago) ? o.cliente.metodoPago : 'Efectivo'}
+                        onChange={e => (e.target.value === DIVIDIR ? abrirDivision(o) : cambiarPago(o, e.target.value))}>
                         {METODOS_PAGO.map(m => <option key={m.id} value={m.id}>{m.id}</option>)}
+                        <option value={DIVIDIR}>{o.pagos?.length ? 'Dividido ✎' : 'Dividir pago…'}</option>
                       </select>
+                      {o.pagos?.length > 0 && (
+                        <button className="btn btn-link btn-sm p-0 small text-start text-decoration-none" onClick={() => abrirDivision(o)} title="Editar pago dividido">
+                          {textoPago(o)}
+                        </button>
+                      )}
                     </td>
                     <td className="text-end fw-bold">{money(o.total)}</td>
                     <td className="text-end pe-3 text-nowrap">
@@ -84,11 +115,27 @@ export default function OrdenesTurno({ ordenes, onChange }) {
                       {!cancelada && <button className="btn btn-sm btn-outline-danger" onClick={() => anular(o)} title="Anular"><i className="bi bi-x-circle"></i></button>}
                     </td>
                   </tr>
+                  {dividiendo?.id === o._id && (
+                    <tr className="table-warning">
+                      <td colSpan={8} className="ps-4 py-2">
+                        <div className="d-flex flex-wrap gap-3 align-items-start">
+                          <div style={{ minWidth: 280, maxWidth: 380 }} className="flex-grow-1">
+                            <div className="small fw-bold mb-1">Pago dividido de la orden #{o.numero} · total {money(o.total)}</div>
+                            <PagoDividido total={o.total} partes={dividiendo.partes} onChange={partes => setDividiendo(d => ({ ...d, partes }))} />
+                          </div>
+                          <div className="d-flex gap-2">
+                            <button className="btn btn-sm btn-dark" onClick={() => guardarDivision(o)}><i className="bi bi-check-lg me-1"></i>Guardar</button>
+                            <button className="btn btn-sm btn-outline-secondary" onClick={() => setDividiendo(null)}>Cancelar</button>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
                   {abierta === o._id && (
                     <tr className="table-light">
                       <td colSpan={8} className="ps-4">
                         {o.items.map((i, idx) => (
-                          <div key={idx}>{i.cantidad}× {i.nombre}{!i.extra && ` (${TAMANO_LABEL[i.tamaño] || i.tamaño})`} — {money(i.precio * i.cantidad)}{i.nota && <em className="text-warning-emphasis"> · {i.nota}</em>}</div>
+                          <div key={idx}>{i.agregadoEn && <span className="badge bg-warning text-dark me-1" title="Adicionado después">+ {hora(i.agregadoEn)}</span>}{i.cantidad}× {i.nombre}{!i.extra && ` (${TAMANO_LABEL[i.tamaño] || i.tamaño})`} — {money(i.precio * i.cantidad)}{i.nota && <em className="text-warning-emphasis"> · {i.nota}</em>}</div>
                         ))}
                         {o.anuladoPor && <div className="text-danger mt-1"><i className="bi bi-x-circle me-1"></i>Anulada por {o.anuladoPor}{o.anuladoEn && ` a las ${hora(o.anuladoEn)}`}</div>}
                         <div className="text-muted mt-1">Registró: {o.usuario || '—'}{o.cliente?.telefono && ` · Tel: ${o.cliente.telefono}`}{o.tipo === 'Domicilio' && ` · ${o.cliente?.direccion}`}</div>

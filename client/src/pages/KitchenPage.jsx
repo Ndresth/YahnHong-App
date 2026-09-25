@@ -82,7 +82,17 @@ export default function KitchenPage() {
     if (type === 'orden:actualizada') {
       setOrdenes(prev => ['Completado', 'Cancelado'].includes(data.estado)
         ? prev.filter(o => o._id !== data._id)
-        : prev.map(o => o._id === data._id ? data : o));
+        : prev.some(o => o._id === data._id) ? prev.map(o => o._id === data._id ? data : o) : [...prev, data]);
+    }
+    if (type === 'orden:agregado') {
+      // Adición a una orden ya enviada: vuelve a la fila (si estaba Lista/Entregada) con los ítems nuevos resaltados
+      const { orden, agregados = [] } = data;
+      setOrdenes(prev => prev.some(o => o._id === orden._id) ? prev.map(o => o._id === orden._id ? orden : o) : [...prev, orden]);
+      setNuevas(prev => new Set(prev).add(orden._id));
+      setTimeout(() => setNuevas(prev => { const n = new Set(prev); n.delete(orden._id); return n; }), 15000);
+      if (opts.current.sonido) beep();
+      if (opts.current.autoPrint) printOrder({ ...orden, items: agregados, adicion: true }, 'cocina');
+      toast(`Adición a la orden #${orden.numero}`, { icon: '➕' });
     }
   });
 
@@ -211,10 +221,11 @@ export default function KitchenPage() {
 
                   <div className="mt-2">
                     {o.items.map((i, idx) => (
-                      <div key={idx} className="kds-item">
+                      <div key={idx} className={`kds-item ${i.agregadoEn ? 'agregado' : ''}`}>
                         <span className="kds-qty">{i.cantidad}×</span>
                         <span className="fw-semibold">{i.nombre}</span>
                         {!i.extra && <small className="text-white-50 ms-1">{TAMANO_LABEL[i.tamaño] || i.tamaño}</small>}
+                        {i.agregadoEn && <span className="kds-nuevo" title={`Adicionado a las ${hora(i.agregadoEn)}`}>+ {hora(i.agregadoEn)}</span>}
                         {i.nota && <div className="kds-note"><i className="bi bi-exclamation-triangle-fill me-1"></i>{i.nota}</div>}
                       </div>
                     ))}
