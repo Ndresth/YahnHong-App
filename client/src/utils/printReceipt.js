@@ -10,6 +10,7 @@
  *  - Imprime la fecha y número real de la orden, no la hora de impresión.
  */
 import { NEGOCIO, TAMANO_LABEL } from '../config';
+import { textoPago } from './pagos';
 
 const SETTINGS_KEY = 'printSettings';
 const DEFAULTS = { ancho: 80, autoComandaPos: false, autoComandaCocina: false, copiasCocina: 1 };
@@ -89,19 +90,20 @@ const facturaHtml = (o) => `
     </table>
     <div class="hr2"></div>
     <div class="row xl b"><span>TOTAL</span><span>${money(o.total)}</span></div>
-    <div class="sm">PAGO: ${esc(o.cliente?.metodoPago || 'Efectivo')}</div>
+    <div class="sm">PAGO: ${esc(textoPago(o))}</div>
     ${o.tipo === 'Domicilio' ? '<div class="c b" style="margin-top:2mm">* Valor del domicilio no incluido</div>' : ''}
     <div class="c sm" style="margin-top:4mm">¡Gracias por su compra!</div>
 `;
 
 const comandaHtml = (o) => `
     <div class="row sm"><span>${esc(fecha(o.fecha))}</span><span>${o.numero ? `#${esc(o.numero)}` : ''}</span></div>
+    ${o.adicion ? '<div class="box">*** ADICIÓN ***</div>' : ''}
     <div class="box">${tituloTipo(o)}</div>
     ${o.horaProgramada ? `<div class="box">PARA LAS ${esc(horaProg(o))}</div>` : ''}
     ${o.tipo !== 'Mesa' ? `<div class="lg b">${esc(o.cliente?.nombre)}</div>` : ''}
     ${o.tipo === 'Domicilio' ? `
         <div class="sm" style="border:1px solid #000;padding:1mm;margin-top:1mm">
-            DIR: ${esc(o.cliente?.direccion)}<br/>TEL: ${esc(o.cliente?.telefono)}<br/>PAGO: ${esc(o.cliente?.metodoPago)}
+            DIR: ${esc(o.cliente?.direccion)}<br/>TEL: ${esc(o.cliente?.telefono)}<br/>PAGO: ${esc(textoPago(o))}
         </div>` : ''}
     ${o.tipo === 'Llevar' && o.cliente?.telefono ? `<div class="sm">TEL: ${esc(o.cliente.telefono)}</div>` : ''}
     <div class="hr2"></div>

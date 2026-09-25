@@ -16,16 +16,15 @@ const router = express.Router();
 const CAJA = requireAuth(ROLES.ADMIN, ROLES.CAJERO);
 const ADMIN = requireAuth(ROLES.ADMIN);
 
-// Órdenes antiguas guardaban "Efectivo/QR"; se cuentan como efectivo
-const normalizarMetodo = (m) => (!m || m === 'Efectivo/QR' ? 'Efectivo' : m);
+const { pagosDe, textoPago } = require('../lib/pagos');
 
 /** Calcula el balance a partir de una lista de órdenes y gastos. */
 const calcularBalance = (ordenes, gastos) => {
     const validas = ordenes.filter(o => o.estado !== 'Cancelado');
     const ventasPorMetodo = {};
     for (const o of validas) {
-        const m = normalizarMetodo(o.cliente?.metodoPago);
-        ventasPorMetodo[m] = (ventasPorMetodo[m] || 0) + (o.total || 0);
+        // Pago dividido: cada parte suma a su método
+        for (const p of pagosDe(o)) ventasPorMetodo[p.metodo] = (ventasPorMetodo[p.metodo] || 0) + p.monto;
     }
     const totalVentas = validas.reduce((acc, o) => acc + (o.total || 0), 0);
     const totalGastos = gastos.reduce((acc, g) => acc + g.monto, 0);
@@ -43,7 +42,7 @@ const calcularBalance = (ordenes, gastos) => {
     };
 };
 
-const CAMPOS_BALANCE = 'total estado cliente.metodoPago fecha';
+const CAMPOS_BALANCE = 'total estado cliente.metodoPago pagos fecha';
 
 // --- GASTOS ---
 router.post('/gastos', CAJA, async (req, res) => {
@@ -251,7 +250,7 @@ router.get('/ventas/excel/:id', CAJA, async (req, res) => {
         origen: o.origen || 'POS',
         programado: o.horaProgramada ? new Date(o.horaProgramada).toLocaleTimeString('es-CO', { timeZone: 'America/Bogota', hour: 'numeric', minute: '2-digit' }) : '',
         cliente: o.cliente?.nombre,
-        metodo: normalizarMetodo(o.cliente?.metodoPago),
+        metodo: textoPago(o),
         estado: o.estado,
         items: o.items.map(i => `${i.cantidad}x ${i.nombre} (${i.tamaño})`).join(', '),
         nota: o.items.map(i => i.nota).filter(Boolean).join(' | '),

@@ -1,7 +1,8 @@
 const express = require('express');
 const Product = require('../models/ProductModel');
 const { TAMANOS } = require('../models/ProductModel');
-const { requireAuth, ROLES } = require('../middleware/auth');
+const { requireAuth, optionalAuth, ROLES } = require('../middleware/auth');
+const { categoriasSoloPos } = require('../../shared/config.json');
 const { cleanText, HttpError } = require('../lib/util');
 
 const router = express.Router();
@@ -45,9 +46,11 @@ const sanitize = (body, partial = false) => {
     return data;
 };
 
-router.get('/', async (req, res) => {
-    res.set('Cache-Control', 'no-cache'); // El navegador revalida con ETag (304 si no cambió)
-    res.json(await getMenu());
+// Público: sin las categorías que solo se venden en el POS (p. ej. Cajas). Personal: todo.
+router.get('/', optionalAuth, async (req, res) => {
+    res.set({ 'Cache-Control': 'no-cache', Vary: 'Authorization' }); // El navegador revalida con ETag (304 si no cambió)
+    const menu = await getMenu();
+    res.json(req.user ? menu : menu.filter(p => !categoriasSoloPos.includes(p.categoria)));
 });
 
 router.post('/', requireAuth(ROLES.ADMIN), async (req, res) => {

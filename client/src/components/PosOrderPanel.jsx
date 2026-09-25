@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useCart } from '../context/CartContext';
 import { METODOS_PAGO, TAMANO_LABEL, TOTAL_MESAS } from '../config';
@@ -6,6 +6,8 @@ import { api } from '../utils/api';
 import { money } from '../utils/format';
 import { getPrintSettings, printOrder } from '../utils/printReceipt';
 import DesechablesPicker from './DesechablesPicker';
+import PagoDividido from './PagoDividido';
+import { partesCompletas, pagoDivididoValido } from '../utils/pagos';
 import { DESECHABLES_VACIO, costoDesechables, desechablesParaEnviar } from '../utils/desechables';
 
 const TIPOS = [
@@ -14,8 +16,16 @@ const TIPOS = [
   { id: 'Domicilio', icon: 'bi-bicycle' }
 ];
 
-/** Panel de la cuenta actual en el POS (fijo a la derecha en tablet/PC, hoja inferior en celular). */
-export default function PosOrderPanel({ open, onClose, mesasOcupadas, onSent }) {
+const PARTES_INICIALES = [{ metodo: 'Efectivo', monto: '' }, { metodo: 'Nequi', monto: '' }];
+
+/** "#12 · Mesa 5" / "#13 · Llevar · Ana" */
+const etiquetaOrden = (o) => `#${o.numero ?? '—'} · ${o.tipo === 'Mesa' ? `Mesa ${o.numeroMesa}` : `${o.tipo === 'Llevar' ? 'Llevar' : 'Domicilio'} · ${o.cliente?.nombre || ''}`}`;
+
+/**
+ * Panel de la cuenta actual en el POS (fijo a la derecha en tablet/PC, hoja inferior en celular).
+ * Modo normal: crea una orden. Modo adición (destino): agrega los productos a una orden que ya está en cocina.
+ */
+export default function PosOrderPanel({ open, onClose, mesasOcupadas, activas = [], onSent }) {
   const { cart, total, totalItems, updateQuantity, updateItemNote, clearCart, toOrderItems, tieneBebida } = useCart();
   const [tipo, setTipo] = useState('Mesa');
   const [mesa, setMesa] = useState('');
@@ -26,6 +36,15 @@ export default function PosOrderPanel({ open, onClose, mesasOcupadas, onSent }) 
   const [enviando, setEnviando] = useState(false);
   const [desechables, setDesechables] = useState(DESECHABLES_VACIO);
   const [imprimir, setImprimir] = useState(() => getPrintSettings().autoComandaPos);
+  const [destinoId, setDestinoId] = useState(null); // orden a la que se adiciona
+  const [eligiendoDestino, setEligiendoDestino] = useState(false);
+  const [dividir, setDividir] = useState(false);
+  const [partes, setPartes] = useState(PARTES_INICIALES);
+
+  const destino = activas.find(o => o._id === destinoId) || null;
+  const ordenDeMesa = useMemo(() => new Map(activas.filter(o => o.tipo === 'Mesa').map(o => [String(o.numeroMesa), o])), [activas]);
+  const ordenMesaElegida = tipo === 'Mesa' && mesa ? ordenDeMesa.get(mesa) : null;
+  const totalCuenta = total + costoDesechables(desechables);
 
   const reset = () => {
     clearCart();
@@ -35,10 +54,40 @@ export default function PosOrderPanel({ open, onClose, mesasOcupadas, onSent }) 
     setMetodoPago('Efectivo');
     setNotaAbierta(null);
     setDesechables(DESECHABLES_VACIO);
+    setDestinoId(null);
+    setEligiendoDestino(false);
+    setDividir(false);
+    setPartes(PARTES_INICIALES);
+  };
+
+  const elegirDestino = (id) => { setDestinoId(id || null); setEligiendoDestino(false); };
+
+  const handleAgregar = async () => {
+    if (!destino || cart.length === 0) return;
+    setEnviando(true);
+    try {
+      const r = await api(`/api/orders/${destino._id}/items`, {
+        method: 'POST',
+        body: { items: toOrderItems(), desechables: desechablesParaEnviar(desechables, true) }
+      });
+      toast.success(`Adicionado a la orden #${r.orden.numero}`);
+      if (r.pagoReiniciado) toast(`La orden #${r.orden.numero} tenía pago dividido: caja debe ajustarlo`, { icon: '⚠️', duration: 6000 });
+      // Comanda solo con lo adicionado
+      if (imprimir) printOrder({ ...r.orden, items: r.agregados, adicion: true }, 'cocina');
+      reset();
+      onSent?.(r.orden);
+      onClose?.();
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setEnviando(false);
+    }
   };
 
   const handleEnviar = async () => {
+    if (destino) return handleAgregar();
     if (cart.length === 0) return;
+    if (dividir && !pagoDivididoValido(partes, totalCuenta)) { toast.error('Revise el pago dividido: cada parte debe ser mayor a 0 y sin métodos repetidos'); return; }
     if (tipo === 'Mesa' && !mesa) { toast.error('Seleccione la mesa'); return; }
     if (tipo === 'Domicilio' && (!cliente.nombre.trim() || !cliente.direccion.trim() || cliente.telefono.replace(/\D/g, '').length < 7)) {
       toast.error('Complete nombre, teléfono y dirección'); return;
@@ -52,6 +101,7 @@ export default function PosOrderPanel({ open, onClose, mesasOcupadas, onSent }) 
           tipo,
           numeroMesa: tipo === 'Mesa' ? mesa : null,
           cliente: { ...cliente, metodoPago },
+          ...(dividir ? { pagos: partesCompletas(partes, totalCuenta) } : {}),
           items: toOrderItems(),
           desechables: desechablesParaEnviar(desechables, tieneBebida)
         }
@@ -68,7 +118,8 @@ export default function PosOrderPanel({ open, onClose, mesasOcupadas, onSent }) 
     }
   };
 
-  const botonTexto = tipo === 'Mesa' ? (mesa ? `Enviar Mesa ${mesa}` : 'Seleccione mesa') : tipo === 'Llevar' ? 'Enviar para llevar' : 'Enviar domicilio';
+  const botonTexto = destino ? `Adicionar a ${etiquetaOrden(destino)}`
+    : tipo === 'Mesa' ? (mesa ? `Enviar Mesa ${mesa}` : 'Seleccione mesa') : tipo === 'Llevar' ? 'Enviar para llevar' : 'Enviar domicilio';
 
   return (
     <section className={`pos-order ${open ? 'open' : ''}`} aria-label="Cuenta actual">
@@ -123,6 +174,30 @@ export default function PosOrderPanel({ open, onClose, mesasOcupadas, onSent }) 
       </div>
 
       <div className="pos-order-footer border-top bg-light">
+        {destino ? (
+          <div className="destino-adicion mb-2">
+            <div className="min-w-0">
+              <div className="small text-uppercase fw-bold opacity-75"><i className="bi bi-plus-square me-1"></i>Adicionando a</div>
+              <div className="fw-bold text-truncate">{etiquetaOrden(destino)} <span className="badge bg-dark ms-1">{destino.estado}</span></div>
+            </div>
+            <button className="btn btn-sm btn-outline-secondary" onClick={() => setDestinoId(null)}>Cancelar</button>
+          </div>
+        ) : eligiendoDestino ? (
+          <div className="mb-2">
+            <select className="form-select" autoFocus defaultValue="" onChange={e => elegirDestino(e.target.value)} aria-label="Orden a la que se adiciona">
+              <option value="" disabled>Elija la orden a la que va a adicionar…</option>
+              {activas.map(o => <option key={o._id} value={o._id}>{etiquetaOrden(o)} · {o.estado}</option>)}
+            </select>
+            <button className="btn btn-sm btn-link text-decoration-none p-0 mt-1" onClick={() => setEligiendoDestino(false)}>Cancelar</button>
+          </div>
+        ) : (
+          <button className="btn btn-sm btn-outline-dark w-100 mb-2" onClick={() => setEligiendoDestino(true)} disabled={activas.length === 0}
+            title={activas.length ? '' : 'No hay órdenes en cocina'}>
+            <i className="bi bi-plus-square me-1"></i>Adicionar a un pedido que ya está en cocina
+          </button>
+        )}
+
+        {!destino && (<>
         <div className="segmented mb-2">
           {TIPOS.map(t => (
             <button key={t.id} className={tipo === t.id ? 'active' : ''} onClick={() => setTipo(t.id)}>
@@ -137,6 +212,12 @@ export default function PosOrderPanel({ open, onClose, mesasOcupadas, onSent }) 
             <button className="btn btn-sm btn-outline-secondary" onClick={() => setCambiandoMesa(true)}>
               <i className="bi bi-arrow-repeat me-1"></i>Cambiar
             </button>
+          </div>
+        )}
+        {ordenMesaElegida && !cambiandoMesa && (
+          <div className="alert alert-warning py-2 px-2 small mb-2 d-flex align-items-center justify-content-between gap-2">
+            <span>La mesa {mesa} ya tiene la orden <strong>#{ordenMesaElegida.numero}</strong>.</span>
+            <button className="btn btn-sm btn-warning fw-bold text-nowrap" onClick={() => elegirDestino(ordenMesaElegida._id)}>Adicionar a #{ordenMesaElegida.numero}</button>
           </div>
         )}
         {tipo === 'Mesa' && (!mesa || cambiandoMesa) && (
@@ -161,25 +242,42 @@ export default function PosOrderPanel({ open, onClose, mesasOcupadas, onSent }) 
           </div>
         )}
 
-        <div className="segmented mb-2" role="group" aria-label="Método de pago">
-          {METODOS_PAGO.map(m => (
-            <button key={m.id} className={metodoPago === m.id ? 'active' : ''} onClick={() => setMetodoPago(m.id)} title={m.id}>
-              <i className={`bi ${m.icon}`}></i><span className="d-none d-xl-inline ms-1">{m.id}</span>
+        {dividir ? (
+          <div className="mb-2">
+            <div className="d-flex justify-content-between align-items-center small mb-1">
+              <span className="fw-bold"><i className="bi bi-pie-chart me-1"></i>Pago dividido</span>
+              <button className="btn btn-sm btn-link p-0 text-decoration-none" onClick={() => { setDividir(false); setPartes(PARTES_INICIALES); }}>Un solo método</button>
+            </div>
+            <PagoDividido total={totalCuenta} partes={partes} onChange={setPartes} />
+          </div>
+        ) : (
+          <div className="mb-2">
+            <div className="segmented" role="group" aria-label="Método de pago">
+              {METODOS_PAGO.map(m => (
+                <button key={m.id} className={metodoPago === m.id ? 'active' : ''} onClick={() => setMetodoPago(m.id)} title={m.id}>
+                  <i className={`bi ${m.icon}`}></i><span className="d-none d-xl-inline ms-1">{m.id}</span>
+                </button>
+              ))}
+            </div>
+            <button className="btn btn-sm btn-link p-0 mt-1 text-decoration-none small" onClick={() => setDividir(true)}
+              title="El cliente paga con varios métodos (ej. mitad efectivo, mitad Nequi)">
+              <i className="bi bi-pie-chart me-1"></i>Dividir pago entre varios métodos
             </button>
-          ))}
-        </div>
+          </div>
+        )}
+        </>)}
 
         <div className="d-flex justify-content-between align-items-center mb-2">
           <div className="form-check m-0">
             <input className="form-check-input" type="checkbox" id="printCmd" checked={imprimir} onChange={e => setImprimir(e.target.checked)} />
             <label className="form-check-label small" htmlFor="printCmd"><i className="bi bi-printer me-1"></i>Imprimir comanda</label>
           </div>
-          <span className="fs-4 fw-800">{money(total + costoDesechables(desechables))}</span>
+          <span className="fs-4 fw-800">{destino && <small className="fs-6 text-muted fw-normal me-1">+</small>}{money(totalCuenta)}</span>
         </div>
 
         <button onClick={handleEnviar} className="btn btn-brand pos-send w-100 fw-bold rounded-3"
-          disabled={cart.length === 0 || enviando || (tipo === 'Mesa' && !mesa)}>
-          {enviando ? <span className="spinner-border spinner-border-sm me-2"></span> : <i className="bi bi-send-fill me-2"></i>}
+          disabled={cart.length === 0 || enviando || (!destino && tipo === 'Mesa' && !mesa)}>
+          {enviando ? <span className="spinner-border spinner-border-sm me-2"></span> : <i className={`bi ${destino ? 'bi-plus-square-fill' : 'bi-send-fill'} me-2`}></i>}
           {botonTexto}
         </button>
       </div>

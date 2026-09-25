@@ -4,6 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { api, downloadFile } from '../../utils/api';
 import { money, hora } from '../../utils/format';
 import { COLOR_METODO, METODOS_PAGO, TAMANO_LABEL } from '../../config';
+import { textoPago } from '../../utils/pagos';
 import { hoy, sumarDias, diasEntre, semanaDe, mesDe, diaCorto, diaLargo, mesLargo, rangoCorto } from '../../utils/fechas';
 
 const COLOR_VENTAS = '#198754';
@@ -194,7 +195,7 @@ function DetalleDia({ dia, onClose }) {
                                   {o.tipo !== 'Mesa' && <div className="fw-semibold">{o.cliente?.nombre}</div>}
                                   <span className="text-muted">{(o.items || []).filter(i => !i.extra).map(i => `${i.cantidad}× ${i.nombre}`).join(', ')}</span>
                                 </td>
-                                <td className="text-end pe-3 text-nowrap"><div className="fw-semibold">{money(o.total)}</div><span className="text-muted">{o.cliente?.metodoPago || 'Efectivo'}</span></td>
+                                <td className="text-end pe-3 text-nowrap"><div className="fw-semibold">{money(o.total)}</div><span className="text-muted">{textoPago(o)}</span></td>
                               </tr>
                             ))}
                             {det.ordenes.length === 0 && <tr><td colSpan={5} className="text-center text-muted py-3">Sin órdenes</td></tr>}

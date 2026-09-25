@@ -42,7 +42,7 @@ export default function PosPage() {
         <div className="pos-menu">
           <MenuBrowser productos={productos} loading={loading} variant="pos" onAdd={handleAdd} />
         </div>
-        <PosOrderPanel open={panelOpen} onClose={() => setPanelOpen(false)} mesasOcupadas={mesasOcupadas} onSent={cargarActivas} />
+        <PosOrderPanel open={panelOpen} onClose={() => setPanelOpen(false)} mesasOcupadas={mesasOcupadas} activas={activas} onSent={cargarActivas} />
       </div>
 
       <div className="pos-bottom-bar">

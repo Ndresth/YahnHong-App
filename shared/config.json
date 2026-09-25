@@ -1,6 +1,7 @@
 {
-  "_comentario": "Configuración compartida por el servidor (validación) y el cliente (pantallas). Editar solo aquí.",
+  "_comentario": "Configuración compartida por el servidor (validación) y el cliente (pantallas). Editar solo aquí. categoriasSoloPos: se venden en el POS pero no salen en el menú web.",
   "categoriaBebidas": "Bebidas",
+  "categoriasSoloPos": ["Cajas", "Combos"],
   "desechables": [
     { "key": "cucharas", "nombre": "Cucharas", "item": "Cuchara", "icon": "bi-cup-straw", "precio": 0, "max": 6 },
     { "key": "platos", "nombre": "Platos", "item": "Plato desechable", "icon": "bi-circle", "precio": 300, "max": 10 },
