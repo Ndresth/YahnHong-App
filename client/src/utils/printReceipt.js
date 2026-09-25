@@ -19,7 +19,7 @@ const DEFAULTS = { ancho: 58, areaMm: null, margenMm: null, autoComandaPos: fals
  * Área útil y margen izquierdo por ancho de rollo (mm). Valores conservadores: muchos drivers
  * de 58 mm escalan o corren la página y se come el borde derecho. Se ajustan en Caja → Impresora.
  */
-export const AREA_POR_ANCHO = { 58: { area: 38, margen: 6 }, 80: { area: 68, margen: 5 } };
+export const AREA_POR_ANCHO = { 58: { area: 38, margen: 2 }, 80: { area: 68, margen: 5 } };
 
 /** Área útil y margen efectivos para la configuración actual. */
 export const medidasImpresion = (cfg = getPrintSettings()) => {
@@ -58,21 +58,22 @@ const styles = (ancho, { area, margen } = medidasImpresion({ ancho })) => {
     html, body { margin: 0; padding: 0; background: #fff; }
     body {
         width: ${area}mm; margin: 0 0 0 ${margen}mm; padding: 2mm 0 6mm;
-        /* Sans-serif en negrita: más oscura y más angosta que Courier en impresoras térmicas */
+        /* Sans-serif en negrita (700: con 900 Windows usa Arial Black, mucho más ancha) */
         font-family: Arial, Helvetica, 'Liberation Sans', sans-serif; font-weight: 700; color: #000;
         font-size: ${ancho === 58 ? 12 : 14}px; line-height: 1.3;
-        overflow-wrap: anywhere;
+        overflow-wrap: break-word;
         -webkit-print-color-adjust: exact; print-color-adjust: exact;
     }
-    .c { text-align: center; } .r { text-align: right; } .b { font-weight: 900; }
+    .c { text-align: center; } .r { text-align: right; } .b { font-weight: 700; }
     .sm { font-size: 0.9em; } .lg { font-size: 1.3em; } .xl { font-size: 1.45em; }
     .hr { border-top: 1px dashed #000; margin: 2mm 0; }
     .hr2 { border-top: 2px solid #000; margin: 2mm 0; }
     .linea { margin: 1.2mm 0; }
-    .box { border: 2px solid #000; padding: 1.5mm; margin: 2mm 0; font-size: 1.6em; font-weight: 900; text-align: center; }
-    .item { font-size: 1.3em; font-weight: 900; margin: 2mm 0 1mm; }
+    .box { border: 2px solid #000; padding: 1.5mm; margin: 2mm 0; font-size: 1.6em; font-weight: 700; text-align: center; }
+    .item { font-size: 1.3em; font-weight: 700; margin: 2mm 0 1mm; }
     .nota { border: 1.5px solid #000; border-left-width: 5px; padding: 1mm 1.5mm; font-size: 0.8em; margin-top: 1mm; }
-    .row { display: flex; flex-wrap: wrap; justify-content: space-between; column-gap: 2mm; }
+    /* Monto a la derecha en la misma línea; solo baja (alineado a la derecha) si no cabe */
+    .row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; column-gap: 2mm; }
     .row > span:last-child { margin-left: auto; text-align: right; white-space: nowrap; }
     `;
 };
