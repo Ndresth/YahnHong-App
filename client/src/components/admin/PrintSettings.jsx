@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
-import { getPrintSettings, printOrder, setPrintSettings } from '../../utils/printReceipt';
+import { getPrintSettings, medidasImpresion, printOrder, setPrintSettings } from '../../utils/printReceipt';
 
 const PRUEBA = {
   numero: 0, fecha: new Date(), tipo: 'Mesa', numeroMesa: '5', usuario: 'Prueba',
@@ -16,6 +16,8 @@ const PRUEBA = {
 export default function PrintSettings() {
   const [s, setS] = useState(getPrintSettings);
   const update = (patch) => { setS(setPrintSettings(patch)); toast.success('Guardado en este equipo', { id: 'print-cfg' }); };
+  const { area, margen } = medidasImpresion(s);
+  const ajustar = (campo, valor, min, max) => update({ [campo]: Math.min(max, Math.max(min, valor)) });
 
   return (
     <div className="card-soft p-3 p-md-4" style={{ maxWidth: 640 }}>
@@ -25,8 +27,26 @@ export default function PrintSettings() {
       <label className="form-label fw-semibold small">Ancho del papel</label>
       <div className="segmented mb-3" style={{ maxWidth: 320 }}>
         {[58, 80].map(a => (
-          <button key={a} className={Number(s.ancho) === a ? 'active' : ''} onClick={() => update({ ancho: a })}>{a} mm</button>
+          <button key={a} className={Number(s.ancho) === a ? 'active' : ''} onClick={() => update({ ancho: a, areaMm: null, margenMm: null })}>{a} mm</button>
         ))}
+      </div>
+
+      <label className="form-label fw-semibold small mb-1">Si el ticket sale cortado a la derecha</label>
+      <p className="small text-muted mb-2">Baje el <b>ancho útil</b> o el <b>margen izquierdo</b> de a 1 mm y use “Probar factura” hasta que se vea completo.</p>
+      <div className="d-flex flex-wrap gap-3 mb-3">
+        {[['areaMm', 'Ancho útil', area, 30, Number(s.ancho) - 2], ['margenMm', 'Margen izquierdo', margen, 0, 12]].map(([campo, etiqueta, valor, min, max]) => (
+          <div key={campo}>
+            <div className="small fw-semibold mb-1">{etiqueta}</div>
+            <div className="input-group input-group-sm" style={{ width: 150 }}>
+              <button className="btn btn-outline-secondary" onClick={() => ajustar(campo, valor - 1, min, max)} disabled={valor <= min} aria-label={`Menos ${etiqueta}`}>−</button>
+              <span className="form-control text-center fw-bold">{valor} mm</span>
+              <button className="btn btn-outline-secondary" onClick={() => ajustar(campo, valor + 1, min, max)} disabled={valor >= max} aria-label={`Más ${etiqueta}`}>+</button>
+            </div>
+          </div>
+        ))}
+        {(s.areaMm != null || s.margenMm != null) && (
+          <button className="btn btn-sm btn-link align-self-end text-decoration-none" onClick={() => update({ areaMm: null, margenMm: null })}>Restablecer</button>
+        )}
       </div>
 
       <label className="form-label fw-semibold small" htmlFor="copias">Copias de comanda</label>
@@ -51,7 +71,7 @@ export default function PrintSettings() {
       <div className="alert alert-light border small mb-0">
         <b>Si el ticket sale cortado, en blanco o con márgenes:</b>
         <ol className="mb-0 ps-3 mt-1">
-          <li>En el cuadro de impresión elija la impresora térmica, <b>Márgenes: Ninguno</b>, <b>Escala: 100%</b> y desactive <b>Encabezados y pies de página</b>.</li>
+          <li>En el cuadro de impresión elija la impresora térmica, <b>Márgenes: Ninguno</b>, <b>Escala: Personalizada 100</b> (no “Predeterminada” ni “Ajustar”) y desactive <b>Encabezados y pies de página</b>.</li>
           <li>En el driver de Windows, el tamaño de papel debe ser el del rollo (80 × 297 mm o 58 × 297 mm), no “Carta”.</li>
           <li>Para imprimir <b>sin el cuadro de diálogo</b> (ideal en cocina): cree un acceso directo de Chrome con <code>--kiosk-printing</code> y deje la térmica como impresora predeterminada.</li>
         </ol>

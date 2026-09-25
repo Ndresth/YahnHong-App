@@ -13,7 +13,19 @@ import { NEGOCIO, TAMANO_LABEL } from '../config';
 import { textoPago } from './pagos';
 
 const SETTINGS_KEY = 'printSettings';
-const DEFAULTS = { ancho: 58, autoComandaPos: false, autoComandaCocina: false, copiasCocina: 1 };
+const DEFAULTS = { ancho: 58, areaMm: null, margenMm: null, autoComandaPos: false, autoComandaCocina: false, copiasCocina: 1 };
+
+/**
+ * Área útil y margen izquierdo por ancho de rollo (mm). Valores conservadores: muchos drivers
+ * de 58 mm escalan o corren la página y se come el borde derecho. Se ajustan en Caja → Impresora.
+ */
+export const AREA_POR_ANCHO = { 58: { area: 38, margen: 6 }, 80: { area: 68, margen: 5 } };
+
+/** Área útil y margen efectivos para la configuración actual. */
+export const medidasImpresion = (cfg = getPrintSettings()) => {
+    const base = AREA_POR_ANCHO[Number(cfg.ancho)] || AREA_POR_ANCHO[58];
+    return { area: Number(cfg.areaMm) || base.area, margen: cfg.margenMm ?? base.margen };
+};
 
 export const getPrintSettings = () => {
     try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') }; }
@@ -39,15 +51,13 @@ const tituloTipo = (o) => {
 
 const horaProg = (o) => new Date(o.horaProgramada).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' });
 
-const styles = (ancho) => {
-    // Área imprimible con margen de seguridad: algunos drivers de 58 mm corren el contenido a la derecha
-    const contenido = ancho === 58 ? 44 : 70;
+const styles = (ancho, { area, margen } = medidasImpresion({ ancho })) => {
     return `
     @page { size: ${ancho}mm auto; margin: 0; }
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; background: #fff; }
     body {
-        width: ${contenido}mm; margin: 0 auto; padding: 2mm 0 6mm;
+        width: ${area}mm; margin: 0 0 0 ${margen}mm; padding: 2mm 0 6mm;
         /* Sans-serif en negrita: más oscura y más angosta que Courier en impresoras térmicas */
         font-family: Arial, Helvetica, 'Liberation Sans', sans-serif; font-weight: 700; color: #000;
         font-size: ${ancho === 58 ? 12 : 14}px; line-height: 1.3;
@@ -58,9 +68,7 @@ const styles = (ancho) => {
     .sm { font-size: 0.9em; } .lg { font-size: 1.3em; } .xl { font-size: 1.45em; }
     .hr { border-top: 1px dashed #000; margin: 2mm 0; }
     .hr2 { border-top: 2px solid #000; margin: 2mm 0; }
-    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-    td { vertical-align: top; padding: 0.6mm 0; }
-    td.q { width: 12%; font-weight: 900; } td.p { width: 32%; text-align: right; white-space: nowrap; }
+    .linea { margin: 1.2mm 0; }
     .box { border: 2px solid #000; padding: 1.5mm; margin: 2mm 0; font-size: 1.6em; font-weight: 900; text-align: center; }
     .item { font-size: 1.3em; font-weight: 900; margin: 2mm 0 1mm; }
     .nota { border: 1.5px solid #000; border-left-width: 5px; padding: 1mm 1.5mm; font-size: 0.8em; margin-top: 1mm; }
@@ -84,14 +92,11 @@ const facturaHtml = (o) => `
     ${o.tipo === 'Domicilio' ? `<div class="sm">DIR: ${esc(o.cliente?.direccion)}</div>` : ''}
     ${o.horaProgramada ? `<div class="b">PROGRAMADO: ${esc(horaProg(o))}</div>` : ''}
     <div class="hr"></div>
-    <table>
-        ${(o.items || []).map(i => `
-            <tr>
-                <td class="q">${esc(i.cantidad)}</td>
-                <td>${esc(i.nombre)}<div class="sm">${i.extra ? (i.precio ? money(i.precio) : 'Sin costo') : `${esc(tamano(i.tamaño))} · ${money(i.precio)}`}</div></td>
-                <td class="p">${money(i.precio * i.cantidad)}</td>
-            </tr>`).join('')}
-    </table>
+    ${(o.items || []).map(i => `
+        <div class="linea">
+            <div class="b">${esc(i.cantidad)} x ${esc(i.nombre)}</div>
+            <div class="row sm"><span>${i.extra ? (i.precio ? money(i.precio) : 'Sin costo') : `${esc(tamano(i.tamaño))} · ${money(i.precio)}`}</span><span class="b">${money(i.precio * i.cantidad)}</span></div>
+        </div>`).join('')}
     <div class="hr2"></div>
     <div class="row xl b"><span>TOTAL</span><span>${money(o.total)}</span></div>
     <div class="sm">PAGO: ${esc(textoPago(o))}</div>
@@ -167,7 +172,7 @@ export const printOrder = (orden, modo = 'cliente') => {
         ? Array.from({ length: Math.max(1, copiasCocina) }, () => comandaHtml(orden)).join('<div style="break-after:page"></div>')
         : facturaHtml(orden);
     const titulo = `${modo === 'cocina' ? 'Comanda' : 'Factura'} ${orden.numero ? '#' + orden.numero : ''}`;
-    printHtml(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(titulo)}</title><style>${styles(Number(ancho))}</style></head><body>${body}</body></html>`);
+    printHtml(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(titulo)}</title><style>${styles(Number(ancho), medidasImpresion())}</style></head><body>${body}</body></html>`);
 };
 
 /** Imprime el resumen del cierre de caja (reporte Z) en la térmica. */
@@ -194,5 +199,5 @@ export const printCierre = (cierre) => {
         <div class="box" style="font-size:1.2em">${d === 0 ? 'CUADRA' : d > 0 ? `SOBRANTE ${money(d)}` : `FALTANTE ${money(-d)}`}</div>
         <div class="c sm" style="margin-top:6mm">Firma: ______________________</div>
     `;
-    printHtml(`<!doctype html><html><head><meta charset="utf-8"><title>Cierre de caja</title><style>${styles(Number(ancho))}</style></head><body>${body}</body></html>`);
+    printHtml(`<!doctype html><html><head><meta charset="utf-8"><title>Cierre de caja</title><style>${styles(Number(ancho), medidasImpresion())}</style></head><body>${body}</body></html>`);
 };
