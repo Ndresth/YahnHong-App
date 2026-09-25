@@ -1,7 +1,7 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const Order = require('../models/OrderModel');
-const { METODOS_PAGO } = require('../models/OrderModel');
+const { METODOS_PAGO, validarPagos, pagosDe } = require('../lib/pagos');
 const Product = require('../models/ProductModel');
 const { TAMANOS } = require('../models/ProductModel');
 const Counter = require('../models/CounterModel');
@@ -12,6 +12,7 @@ const { buildDesechables, CATEGORIA_BEBIDAS } = require('../lib/desechables');
 const { parseHoraProgramada, sumarDias, TZ } = require('../lib/fechas');
 const horario = require('../lib/horario');
 const diasCerrados = require('../lib/diasCerrados');
+const { categoriasSoloPos } = require('../../shared/config.json');
 
 const router = express.Router();
 
@@ -35,7 +36,7 @@ const publicOrderLimiter = rateLimit({
  * Construye los ítems con los precios REALES de la base de datos.
  * El cliente sólo dice qué producto, tamaño y cantidad; nunca el precio.
  */
-const buildItems = async (rawItems) => {
+const buildItems = async (rawItems, { esStaff = false } = {}) => {
     if (!Array.isArray(rawItems) || rawItems.length === 0) throw new HttpError(400, 'El pedido está vacío');
     if (rawItems.length > 60) throw new HttpError(400, 'Demasiados ítems en un pedido');
 
@@ -49,6 +50,7 @@ const buildItems = async (rawItems) => {
         const p = byId.get(Number(raw.productoId));
         if (!p) throw new HttpError(400, 'Uno de los productos ya no existe. Actualice el menú.');
         if (p.disponible === false) throw new HttpError(409, `"${p.nombre}" está agotado`);
+        if (!esStaff && categoriasSoloPos.includes(p.categoria)) throw new HttpError(400, `"${p.nombre}" no está disponible en la web`);
 
         const tamaño = String(raw.tamaño || '').toLowerCase();
         const precio = TAMANOS.includes(tamaño) ? p.precios?.[tamaño] : 0;
@@ -119,14 +121,18 @@ router.post('/', optionalAuth, publicOrderLimiter, async (req, res) => {
     const horaProgramada = tipo === 'Mesa' ? null : parseHoraProgramada(body.horaProgramada);
     if (!esStaff) await validarHorarioWeb(horaProgramada);
 
-    const { items: productos, total: totalProductos, tieneBebida } = await buildItems(body.items);
+    const { items: productos, total: totalProductos, tieneBebida } = await buildItems(body.items, { esStaff });
     const extras = buildDesechables(body.desechables, HttpError, { tieneBebida });
     const items = [...productos, ...extras];
     const total = totalProductos + extras.reduce((a, i) => a + i.precio * i.cantidad, 0);
-    const numero = await Counter.next('orden');
 
+    // Pago dividido (solo POS): las partes deben sumar el total calculado aquí
+    const pagos = esStaff && body.pagos ? validarPagos(body.pagos, total) : null;
+    if (pagos) cliente.metodoPago = 'Mixto';
+
+    const numero = await Counter.next('orden');
     const orden = await Order.create({
-        tipo, numeroMesa, cliente, items, total, numero, horaProgramada,
+        tipo, numeroMesa, cliente, items, total, numero, horaProgramada, ...(pagos ? { pagos } : {}),
         origen: esStaff ? 'POS' : 'Web',
         usuario: esStaff ? req.user.nombre || req.user.role : 'Web'
     });
@@ -145,6 +151,49 @@ router.get('/', requireAuth(...STAFF), async (req, res) => {
 router.get('/turno', requireAuth(...CAJA), async (req, res) => {
     const ordenes = await Order.find({ cierre_id: null }).sort({ fecha: -1 }).limit(500).lean();
     res.json(ordenes);
+});
+
+// --- ADICIONAR PRODUCTOS A UNA ORDEN YA ENVIADA (POS) ---
+// La orden vuelve a cocina si ya estaba Lista o Entregada; los ítems nuevos quedan marcados (agregadoEn).
+router.post('/:id/items', requireAuth(...PUEDEN_VENDER), async (req, res) => {
+    if (!isObjectId(req.params.id)) throw new HttpError(400, 'ID inválido');
+    const actual = await Order.findOne({ _id: req.params.id, cierre_id: null }).lean();
+    if (!actual) throw new HttpError(404, 'Orden no encontrada o ya cerrada en caja');
+    if (actual.estado === 'Cancelado') throw new HttpError(409, 'La orden está anulada');
+
+    const { items: nuevos, total: totalNuevos, tieneBebida } = await buildItems(req.body?.items, { esStaff: true });
+    // Vasos: valen si la orden ya tenía una bebida o si viene una en la adición
+    const idsPrevios = actual.items.filter(i => !i.extra && i.productoId != null).map(i => i.productoId);
+    const hayBebida = tieneBebida || Boolean(idsPrevios.length && await Product.exists({ id: { $in: idsPrevios }, categoria: CATEGORIA_BEBIDAS }));
+    const extras = buildDesechables(req.body?.desechables, HttpError, { tieneBebida: hayBebida });
+    const ahora = new Date();
+    const agregados = [...nuevos, ...extras].map(i => ({ ...i, agregadoEn: ahora }));
+    const suma = totalNuevos + extras.reduce((a, i) => a + i.precio * i.cantidad, 0);
+
+    const set = {
+        total: actual.total + suma,
+        estado: ['Listo', 'Completado'].includes(actual.estado) ? 'Pendiente' : actual.estado
+    };
+    const cambios = { $push: { items: { $each: agregados } }, $set: set };
+    // Un pago dividido ya no cuadra con el nuevo total: queda el método de mayor valor y caja lo ajusta
+    let pagoReiniciado = false;
+    if (actual.pagos?.length) {
+        const mayor = pagosDe(actual).sort((a, b) => b.monto - a.monto)[0];
+        set['cliente.metodoPago'] = mayor.metodo;
+        cambios.$unset = { pagos: 1 };
+        pagoReiniciado = true;
+    }
+
+    // Filtro por total: si otra persona adicionó al mismo tiempo, no se pisan los cambios
+    const orden = await Order.findOneAndUpdate(
+        { _id: actual._id, cierre_id: null, total: actual.total, estado: { $ne: 'Cancelado' } },
+        cambios,
+        { returnDocument: 'after' }
+    );
+    if (!orden) throw new HttpError(409, 'La orden cambió mientras se adicionaba. Intente de nuevo.');
+
+    events.publish('orden:agregado', { orden, agregados, por: req.user.nombre || req.user.role });
+    res.json({ orden, agregados, pagoReiniciado });
 });
 
 // --- CAMBIO DE ESTADO (flujo de cocina) ---
@@ -168,15 +217,27 @@ router.patch('/:id/estado', requireAuth(...STAFF), async (req, res) => {
     res.json(orden);
 });
 
-// --- CORREGIR MÉTODO DE PAGO (caja) ---
+// --- CORREGIR MÉTODO DE PAGO (caja): un método o pago dividido { pagos: [{ metodo, monto }] } ---
 router.patch('/:id/pago', requireAuth(...CAJA), async (req, res) => {
-    const { metodoPago } = req.body || {};
+    const { metodoPago, pagos: rawPagos } = req.body || {};
     if (!isObjectId(req.params.id)) throw new HttpError(400, 'ID inválido');
-    if (!METODOS_PAGO.includes(metodoPago)) throw new HttpError(400, 'Método de pago inválido');
+
+    let cambios;
+    if (rawPagos !== undefined) {
+        const actual = await Order.findOne({ _id: req.params.id, cierre_id: null }).select('total').lean();
+        if (!actual) throw new HttpError(404, 'Orden no encontrada o ya cerrada en caja');
+        const pagos = validarPagos(rawPagos, actual.total);
+        cambios = pagos
+            ? { $set: { pagos, 'cliente.metodoPago': 'Mixto' } }
+            : { $set: { 'cliente.metodoPago': rawPagos[0].metodo }, $unset: { pagos: 1 } };
+    } else {
+        if (!METODOS_PAGO.includes(metodoPago)) throw new HttpError(400, 'Método de pago inválido');
+        cambios = { $set: { 'cliente.metodoPago': metodoPago }, $unset: { pagos: 1 } };
+    }
 
     const orden = await Order.findOneAndUpdate(
         { _id: req.params.id, cierre_id: null },
-        { 'cliente.metodoPago': metodoPago },
+        cambios,
         { returnDocument: 'after' }
     );
     if (!orden) throw new HttpError(404, 'Orden no encontrada o ya cerrada en caja');

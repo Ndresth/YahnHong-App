@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const ESTADOS = ['Pendiente', 'Preparando', 'Listo', 'Completado', 'Cancelado'];
 const TIPOS = ['Mesa', 'Llevar', 'Domicilio'];
-const METODOS_PAGO = ['Efectivo', 'Nequi', 'Transferencia', 'Tarjeta'];
+const { METODOS_PAGO } = require('../lib/pagos');
 
 /**
  * Esquema de Órdenes de Venta.
@@ -22,8 +22,11 @@ const OrderSchema = new mongoose.Schema({
     nombre: String,
     telefono: String,
     direccion: String,
-    metodoPago: String
+    metodoPago: String // 'Mixto' si el pago está dividido (ver pagos)
   },
+
+  // Pago dividido entre métodos: [{ metodo, monto }] que suman el total. Vacío = todo con cliente.metodoPago
+  pagos: { type: [{ metodo: { type: String, enum: METODOS_PAGO }, monto: Number, _id: false }], default: undefined },
 
   items: [
     {
@@ -33,7 +36,8 @@ const OrderSchema = new mongoose.Schema({
       precio: Number,
       tamaño: String,
       nota: { type: String, default: '' }, // Observaciones de preparación
-      extra: { type: Boolean, default: false } // Desechables (cucharas, platos)
+      extra: { type: Boolean, default: false }, // Desechables (cucharas, platos)
+      agregadoEn: { type: Date, default: undefined } // Adición a una orden ya enviada a cocina
     }
   ],
 

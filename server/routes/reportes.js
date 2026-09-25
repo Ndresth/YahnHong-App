@@ -13,8 +13,17 @@ const DIA = { $dateToString: { format: '%Y-%m-%d', date: '$fecha', timezone: TZ 
 const VALIDA = { estado: { $ne: 'Cancelado' } };
 const TOTAL = { $ifNull: ['$total', 0] };
 
-// Órdenes antiguas guardaban "Efectivo/QR" o nada; se cuentan como efectivo
-const normalizarMetodo = (m) => (!m || m === 'Efectivo/QR' ? 'Efectivo' : m);
+const { normalizarMetodo } = require('../lib/pagos');
+
+// Pago dividido: una fila por parte ({ metodo, monto }); pago único: todo el total a su método
+const PARTES_PAGO = [
+    { $addFields: { _partes: { $cond: [
+        { $gt: [{ $size: { $ifNull: ['$pagos', []] } }, 0] },
+        '$pagos',
+        [{ metodo: '$cliente.metodoPago', monto: TOTAL }]
+    ] } } },
+    { $unwind: { path: '$_partes', includeArrayIndex: '_parte' } }
+];
 
 /**
  * GET /api/reportes?desde=AAAA-MM-DD&hasta=AAAA-MM-DD  (inclusive, hora de Colombia)
@@ -32,7 +41,14 @@ router.get('/', ADMIN, async (req, res) => {
                 $facet: {
                     dias: [
                         { $match: VALIDA },
-                        { $group: { _id: { dia: DIA, metodo: '$cliente.metodoPago' }, ventas: { $sum: TOTAL }, pedidos: { $sum: 1 } } }
+                        ...PARTES_PAGO,
+                        {
+                            $group: {
+                                _id: { dia: DIA, metodo: '$_partes.metodo' },
+                                ventas: { $sum: { $ifNull: ['$_partes.monto', 0] } },
+                                pedidos: { $sum: { $cond: [{ $eq: ['$_parte', 0] }, 1, 0] } } // la orden se cuenta una vez
+                            }
+                        }
                     ],
                     cancelados: [
                         { $match: { estado: 'Cancelado' } },
@@ -117,7 +133,7 @@ router.get('/dia/:dia', ADMIN, async (req, res) => {
     const enRango = { fecha: { $gte: ini, $lt: fin } };
     const [ordenes, gastos] = await Promise.all([
         Order.find(enRango).sort({ fecha: 1 }).limit(1000)
-            .select('numero fecha tipo numeroMesa origen horaProgramada cliente.nombre cliente.metodoPago items.nombre items.cantidad items.tamaño items.extra total estado usuario')
+            .select('numero fecha tipo numeroMesa origen horaProgramada cliente.nombre cliente.metodoPago pagos items.nombre items.cantidad items.tamaño items.extra total estado usuario')
             .lean(),
         Gasto.find(enRango).sort({ fecha: 1 }).select('descripcion monto fecha usuario').lean()
     ]);
