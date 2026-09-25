@@ -45,6 +45,8 @@
   { "id": 81, "categoria": "Porciones", "nombre": "De Ensalada", "descripcion": "Porción", "precios": { "unico": 5000 }, "imagen": "/images/Ensalada.jpg" },
   { "id": 82, "categoria": "Porciones", "nombre": "De Arroz", "descripcion": "Porción", "precios": { "unico": 5000 }, "imagen": "/images/Arroz.jpg" },
   { "id": 83, "categoria": "Porciones", "nombre": "De Pollo", "descripcion": "Porción", "precios": { "unico": 5000 }, "imagen": "/images/Pollo.jpg" },
+  { "id": 84, "categoria": "Cajas", "nombre": "Caja C1", "descripcion": "Caja para empacar", "precios": { "unico": 500 }, "imagen": "" },
+  { "id": 85, "categoria": "Cajas", "nombre": "Caja J1", "descripcion": "Caja para empacar", "precios": { "unico": 1000 }, "imagen": "" },
   { "id": 1764227449824, "categoria": "Porciones", "nombre": "Sopa", "descripcion": "Sopa del dia", "precios": { "unico": 5000 }, "imagen": "https://media.istockphoto.com/id/1092632852/es/foto/sopa-de-verduras.jpg?s=612x612&w=0&k=20&c=sHSBl3NuMooUguuGacWBuOMWkgci4JzqGhAPe5gQxnk=" },
   { "id": 1764261805682, "categoria": "Arroz Frito", "nombre": "Valenciana Especial", "descripcion": "Arroz frito con jamon, chorizo butifarra ,cerdo. Presa de pollo broasterk.", "precios": { "familiar": 38000, "mediano": 28000 }, "imagen": "/images/Arroz-Valenciana.jpg" },
   { "id": 1764262943873, "categoria": "Bebidas", "nombre": "Postobon 1.5", "descripcion": "Gaseosa litro y medio", "precios": { "unico": 7000 }, "imagen": "https://megatiendas.vtexassets.com/arquivos/ids/176994-1600-auto?v=638937212080470000&width=1600&height=auto&aspect=true" },

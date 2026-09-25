@@ -11,6 +11,12 @@ Sistema para restaurante: menú público con pedidos por WhatsApp, POS para mese
 | `/cocina` | Todos los roles | Órdenes en vivo con cronómetro (amarillo a los 10 min, rojo a los 20), flujo Pendiente → Preparando → Listo → Entregado, sonido e impresión automática opcional. Los pedidos **programados** esperan en una franja aparte y entran a la fila 30 min antes de su hora |
 | `/admin` | Admin, cajero | Resumen del turno, desglose por método de pago, gastos, órdenes del turno (reimprimir, corregir pago, anular), productos agotados, arqueo y cierre, impresora y **Ajustes** (días cerrados). El admin además tiene inventario completo, **Reportes**, usuarios y respaldo |
 
+## Adiciones y pago dividido (POS)
+
+- **Adicionar a un pedido en cocina:** al tocar una mesa ocupada aparece "Adicionar a #N"; para llevar o domicilio, botón **Adicionar a un pedido que ya está en cocina**. Los productos nuevos suman al total, la orden vuelve a cocina si ya estaba lista o entregada, y en cocina se resaltan con la hora de la adición (sonido y comanda "ADICIÓN" solo con lo nuevo).
+- **Pago dividido:** en el POS, **Dividir pago entre varios métodos** (hasta 4); en Caja → Órdenes, opción **Dividir pago…** en la columna Pago. La última parte se calcula sola. Cada parte suma a su método en caja, cierre, reportes y Excel. Si a una orden con pago dividido se le adiciona, el pago queda en el método de mayor valor y caja debe ajustarlo.
+- **Categorías solo POS:** `categoriasSoloPos` en `shared/config.json` (hoy: **Cajas** — Caja C1 $500, Caja J1 $1.000). Se venden en el POS pero no salen en el menú web ni se pueden pedir desde la web.
+
 ## Horario de atención
 
 Se define en `shared/config.json` (lo usan servidor y cliente) y se valida en el servidor (`server/lib/horario.js`):
