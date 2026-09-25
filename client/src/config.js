@@ -12,7 +12,7 @@ export const NEGOCIO = {
 
 export const CATEGORIAS = [
   'Arroz Frito', 'Chop Suey', 'Espaguetes', 'Agridulce',
-  'Platos Especiales', 'Comidas Corrientes', 'Porciones', 'Bebidas', 'Cajas'
+  'Platos Especiales', 'Comidas Corrientes', 'Porciones', 'Bebidas', 'Combos', 'Cajas'
 ];
 
 /** Categorías que se venden en el POS pero no salen en el menú web (shared/config.json). */
