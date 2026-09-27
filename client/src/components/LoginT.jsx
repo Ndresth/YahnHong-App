@@ -46,11 +46,11 @@ export default function Login() {
         <form onSubmit={handleLogin}>
           <label className="form-label fw-semibold small text-secondary" htmlFor="nombre">Su nombre</label>
           <input id="nombre" className="form-control form-control-lg mb-3" maxLength={40}
-            autoComplete="username" value={nombre} onChange={e => setNombre(e.target.value)} />
+            autoComplete="username" autoFocus={!nombre} value={nombre} onChange={e => setNombre(e.target.value)} />
 
           <label className="form-label fw-semibold small text-secondary" htmlFor="clave">Contraseña</label>
           <div className="input-group input-group-lg mb-4">
-            <input id="clave" type={verClave ? 'text' : 'password'} className="form-control" autoFocus
+            <input id="clave" type={verClave ? 'text' : 'password'} className="form-control" autoFocus={Boolean(nombre)}
               autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Clave asignada" />
             <button type="button" className="btn btn-outline-secondary" onClick={() => setVerClave(v => !v)} aria-label="Mostrar clave">
               <i className={`bi ${verClave ? 'bi-eye-slash' : 'bi-eye'}`}></i>

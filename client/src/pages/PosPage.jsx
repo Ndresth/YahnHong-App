@@ -15,6 +15,12 @@ export default function PosPage() {
   const { addToCart, totalItems, total } = useCart();
   const [panelOpen, setPanelOpen] = useState(false);
   const [activas, setActivas] = useState([]);
+  // Vista de productos: con fotos o lista compacta (se recuerda en este equipo)
+  const [compacto, setCompacto] = useState(() => { try { return localStorage.getItem('posVista') === 'lista'; } catch { return false; } });
+  const toggleCompacto = () => setCompacto(v => {
+    try { localStorage.setItem('posVista', v ? 'fotos' : 'lista'); } catch { /* sin storage */ }
+    return !v;
+  });
 
   const cargarActivas = useCallback(() => {
     api('/api/orders').then(setActivas).catch(() => {});
@@ -40,7 +46,7 @@ export default function PosPage() {
       <StaffNav live={live} />
       <div className="pos-layout">
         <div className="pos-menu">
-          <MenuBrowser productos={productos} loading={loading} variant="pos" onAdd={handleAdd} />
+          <MenuBrowser productos={productos} loading={loading} variant="pos" onAdd={handleAdd} compacto={compacto} onToggleCompacto={toggleCompacto} />
         </div>
         <PosOrderPanel open={panelOpen} onClose={() => setPanelOpen(false)} mesasOcupadas={mesasOcupadas} activas={activas} onSent={cargarActivas} />
       </div>

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 import { Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useProducts } from '../hooks/useProducts';
@@ -11,10 +12,23 @@ import CartSidebar from '../components/CartSidebar';
 
 export default function PublicMenu() {
   const { productos, loading } = useProducts();
-  const { totalItems, total } = useCart();
+  const { cart, addToCart, totalItems, total } = useCart();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [selected, setSelected] = useState(null);
   const horario = useHorario();
+
+  // Cuántas unidades de cada producto lleva el cliente (se muestra en el botón + de la tarjeta)
+  const enCarrito = useMemo(() => {
+    const m = new Map();
+    for (const i of cart) m.set(i.id, (m.get(i.id) || 0) + i.quantity);
+    return m;
+  }, [cart]);
+
+  // Productos de un solo precio: se agregan con un toque, sin abrir el detalle
+  const agregarRapido = (p, size, price) => {
+    addToCart(p, size, price, 1);
+    toast.success(<span>Agregado: <b>{p.nombre}</b></span>, { id: `add-${p.id}`, icon: '🥢', duration: 1500 });
+  };
 
   return (
     <>
@@ -54,7 +68,7 @@ export default function PublicMenu() {
       )}
 
       <main style={{ paddingBottom: totalItems > 0 ? 90 : 20 }}>
-        <MenuBrowser productos={productos} loading={loading} onSelect={setSelected} />
+        <MenuBrowser productos={productos} loading={loading} onSelect={setSelected} onQuickAdd={agregarRapido} enCarrito={enCarrito} />
       </main>
 
       {totalItems > 0 && !isCartOpen && (

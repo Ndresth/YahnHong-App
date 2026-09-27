@@ -51,7 +51,7 @@ export default function AdminDashboard() {
 
   const tabs = [
     { id: 'caja', label: 'Caja', icon: 'bi-cash-stack' },
-    { id: 'ordenes', label: `Órdenes${ordenes.length ? ` (${ordenes.length})` : ''}`, icon: 'bi-list-ul' },
+    { id: 'ordenes', label: 'Órdenes', count: ordenes.length, icon: 'bi-list-ul' },
     { id: 'inventario', label: isAdmin ? 'Inventario' : 'Agotados', icon: 'bi-box-seam' },
     ...(isAdmin ? [{ id: 'reportes', label: 'Reportes', icon: 'bi-bar-chart-fill' }] : []),
     { id: 'impresion', label: 'Impresora', icon: 'bi-printer' },
@@ -63,10 +63,10 @@ export default function AdminDashboard() {
       <StaffNav live={live} />
       <div className="container-xl py-3">
         <div className="d-flex flex-wrap align-items-center gap-2 mb-3">
-          <div className="segmented flex-grow-1" style={{ maxWidth: 820 }}>
+          <div className="segmented admin-tabs flex-grow-1" style={{ maxWidth: 820 }} role="tablist">
             {tabs.map(t => (
-              <button key={t.id} className={vista === t.id ? 'active' : ''} onClick={() => setVista(t.id)}>
-                <i className={`bi ${t.icon} me-1`}></i><span className="d-none d-sm-inline">{t.label}</span>
+              <button key={t.id} className={vista === t.id ? 'active' : ''} onClick={() => setVista(t.id)} role="tab" aria-selected={vista === t.id}>
+                <i className={`bi ${t.icon}`}></i><span>{t.label}{t.count ? <span className="d-none d-sm-inline"> ({t.count})</span> : null}</span>
               </button>
             ))}
           </div>

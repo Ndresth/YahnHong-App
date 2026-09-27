@@ -61,6 +61,18 @@ button, .btn { touch-action: manipulation; }
   white-space: nowrap; cursor: pointer; transition: all 0.15s;
 }
 .filter-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.filter-btn-sm { padding: 4px 12px; font-size: 0.8rem; }
+.filter-btn:disabled { opacity: 0.4; }
+
+/* Pestañas de Caja: ícono + nombre; en celular el nombre va debajo y en letra pequeña */
+.segmented.admin-tabs button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }
+@media (max-width: 575.98px) {
+  .admin-tabs { overflow-x: auto; scrollbar-width: none; }
+  .admin-tabs::-webkit-scrollbar { display: none; }
+  /* Las 6 pestañas se reparten el ancho: caben desde 360 px sin desplazar */
+  .segmented.admin-tabs button { flex: 1 1 auto; min-width: 0; flex-direction: column; gap: 1px; font-size: 0.62rem; letter-spacing: -0.2px; padding: 6px 1px; }
+  .segmented.admin-tabs button .bi { font-size: 1rem; }
+}
 .search-input { border-radius: 999px; padding-left: 38px; }
 .search-wrap { position: relative; }
 .search-wrap > i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); }
@@ -80,6 +92,14 @@ button, .btn { touch-action: manipulation; }
   border-radius: 999px; padding: 4px 14px; font-weight: 700; white-space: nowrap;
 }
 .btn-add:hover { background: var(--primary); color: #fff; }
+/* Botón + de la tarjeta: tamaño táctil de 44px; con cantidad muestra cuántos lleva el cliente */
+.btn-add-round {
+  flex-shrink: 0; width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--primary);
+  background: #fff; color: var(--primary); font-size: 1.15rem; display: inline-flex; align-items: center; justify-content: center;
+  transition: transform 0.1s, background 0.15s;
+}
+.btn-add-round:hover, .btn-add-round.con-cantidad { background: var(--primary); color: #fff; }
+.btn-add-round:active { transform: scale(0.92); }
 
 .fab-cart {
   position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom));
@@ -91,9 +111,11 @@ button, .btn { touch-action: manipulation; }
 .side-panel {
   position: fixed; top: 0; right: 0; bottom: 0; width: min(420px, 100vw);
   background: #fff; z-index: 1050; display: flex; flex-direction: column;
-  transform: translateX(100%); transition: transform 0.25s ease; box-shadow: -8px 0 30px rgba(0, 0, 0, 0.15);
+  transform: translateX(100%); visibility: hidden;
+  transition: transform 0.25s ease, visibility 0s linear 0.25s;
 }
-.side-panel.open { transform: none; }
+/* La sombra y la visibilidad solo al abrir: cerrado no se ve ni recibe foco */
+.side-panel.open { transform: none; visibility: visible; transition: transform 0.25s ease; box-shadow: -8px 0 30px rgba(0, 0, 0, 0.15); }
 .side-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); z-index: 1045; }
 .qty-control { flex-shrink: 0; display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
 .qty-control button { border: 0; background: #f4f4f5; width: 34px; height: 34px; font-size: 1.1rem; }
@@ -120,6 +142,16 @@ button, .btn { touch-action: manipulation; }
   display: flex; flex-direction: column; user-select: none;
 }
 .pos-tile.agotado { opacity: 0.45; }
+/* Vista lista del POS: una fila por producto, caben ~3 veces más */
+.pos-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 6px; }
+.pos-row { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 5px 6px 5px 12px; min-height: 52px; }
+.pos-row.agotado { opacity: 0.45; }
+.pos-row-name { flex: 1; min-width: 0; font-weight: 700; font-size: 0.9rem; line-height: 1.15; }
+.pos-row-sizes { display: flex; gap: 4px; flex-shrink: 0; }
+.pos-row-sizes .pos-size-btn { width: 62px; flex: none; padding: 5px 2px; }
+.vista-toggle { flex-shrink: 0; flex: none; }
+.vista-toggle button { flex: none; display: inline-flex; align-items: center; white-space: nowrap; padding: 6px 12px; font-size: 0.85rem; }
+.vista-toggle button .bi { font-size: 1rem; }
 .pos-tile-img { height: 86px; background: #eee; position: relative; }
 .pos-tile-img img { width: 100%; height: 100%; object-fit: cover; }
 .pos-tile-name { font-weight: 700; font-size: 0.86rem; line-height: 1.15; padding: 6px 8px 4px; min-height: 2.4em; }
