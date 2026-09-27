@@ -11,6 +11,13 @@ Sistema para restaurante: menú público con pedidos por WhatsApp, POS para mese
 | `/cocina` | Todos los roles | Órdenes en vivo con cronómetro (amarillo a los 10 min, rojo a los 20), flujo Pendiente → Preparando → Listo → Entregado, sonido e impresión automática opcional. Los pedidos **programados** esperan en una franja aparte y entran a la fila 30 min antes de su hora |
 | `/admin` | Admin, cajero | Resumen del turno, desglose por método de pago, gastos, órdenes del turno (reimprimir, corregir pago, anular), productos agotados, arqueo y cierre, impresora y **Ajustes** (días cerrados). El admin además tiene inventario completo, **Reportes**, usuarios y respaldo |
 
+## Uso rápido
+
+- **Menú web:** el botón **+** de cada tarjeta agrega con un toque los productos de un solo precio y muestra cuántos lleva el cliente; si hay varios tamaños abre el detalle.
+- **POS:** botón **Fotos / Lista** junto al buscador (la vista **Lista** muestra unas 3 veces más productos y se recuerda en cada equipo). Teclado: **/** enfoca el buscador, **Enter** agrega el producto si la búsqueda deja uno solo con un solo precio, **Esc** limpia.
+- **Caja → Órdenes:** filtros **En cocina / Listas / Entregadas / Anuladas** y botón **Entregar** en las órdenes listas.
+- **Caja → Inventario:** filtros por categoría y **Agotados**.
+
 ## Adiciones y pago dividido (POS)
 
 - **Adicionar a un pedido en cocina:** al tocar una mesa ocupada aparece "Adicionar a #N"; para llevar o domicilio, botón **Adicionar a un pedido que ya está en cocina**. Los productos nuevos suman al total, la orden vuelve a cocina si ya estaba lista o entregada, y en cocina se resaltan con la hora de la adición (sonido y comanda "ADICIÓN" solo con lo nuevo).

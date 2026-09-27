@@ -10,6 +10,15 @@ import { pagosDe, textoPago, partesCompletas, pagoDivididoValido } from '../../u
 
 const DIVIDIR = '__dividir';
 
+/** Filtros rápidos por estado */
+const FILTROS = [
+  { id: 'todas', label: 'Todas', ok: () => true },
+  { id: 'cocina', label: 'En cocina', ok: o => ['Pendiente', 'Preparando'].includes(o.estado) },
+  { id: 'listas', label: 'Listas', ok: o => o.estado === 'Listo' },
+  { id: 'entregadas', label: 'Entregadas', ok: o => o.estado === 'Completado' },
+  { id: 'anuladas', label: 'Anuladas', ok: o => o.estado === 'Cancelado' }
+];
+
 const ESTADO_BADGE = {
   Pendiente: 'bg-secondary', Preparando: 'bg-primary', Listo: 'bg-success',
   Completado: 'bg-light text-dark border', Cancelado: 'bg-danger'
@@ -18,14 +27,25 @@ const ESTADO_BADGE = {
 /** Todas las órdenes del turno: reimprimir, corregir método de pago o anular. */
 export default function OrdenesTurno({ ordenes, onChange }) {
   const [q, setQ] = useState('');
+  const [filtro, setFiltro] = useState('todas');
   const [abierta, setAbierta] = useState(null);
   const [dividiendo, setDividiendo] = useState(null); // { id, partes }
 
   const visibles = useMemo(() => {
     const s = q.trim().toLowerCase();
-    if (!s) return ordenes;
-    return ordenes.filter(o => `${o.numero} ${o.cliente?.nombre} ${o.numeroMesa ?? ''} ${o.tipo}`.toLowerCase().includes(s));
-  }, [ordenes, q]);
+    const f = FILTROS.find(x => x.id === filtro) || FILTROS[0];
+    return ordenes
+      .filter(f.ok)
+      .filter(o => !s || `${o.numero} ${o.cliente?.nombre} ${o.numeroMesa ?? ''} ${o.tipo}`.toLowerCase().includes(s));
+  }, [ordenes, q, filtro]);
+
+  const entregar = async (o) => {
+    try {
+      await api(`/api/orders/${o._id}/estado`, { method: 'PATCH', body: { estado: 'Completado' } });
+      toast.success(`Orden #${o.numero} entregada`);
+      onChange();
+    } catch (e) { toast.error(e.message); }
+  };
 
   const cambiarPago = async (o, metodoPago) => {
     try {
@@ -74,6 +94,16 @@ export default function OrdenesTurno({ ordenes, onChange }) {
         <h6 className="fw-bold m-0 me-auto"><i className="bi bi-list-ul me-2"></i>Órdenes del turno ({ordenes.length})</h6>
         <input type="search" className="form-control form-control-sm" style={{ maxWidth: 240 }} placeholder="Buscar #, mesa, cliente…" value={q} onChange={e => setQ(e.target.value)} />
       </div>
+      <div className="px-3 py-2 border-bottom filter-scroll">
+        {FILTROS.map(f => {
+          const n = ordenes.filter(f.ok).length;
+          return (
+            <button key={f.id} className={`filter-btn filter-btn-sm ${filtro === f.id ? 'active' : ''}`} onClick={() => setFiltro(f.id)} disabled={f.id !== 'todas' && n === 0}>
+              {f.label} <span className="opacity-75 ms-1">{n}</span>
+            </button>
+          );
+        })}
+      </div>
       <div className="table-responsive">
         <table className="table table-hover align-middle mb-0 small table-sm-touch">
           <thead className="table-light">
@@ -109,6 +139,9 @@ export default function OrdenesTurno({ ordenes, onChange }) {
                     </td>
                     <td className="text-end fw-bold">{money(o.total)}</td>
                     <td className="text-end pe-3 text-nowrap">
+                      {o.estado === 'Listo' && (
+                        <button className="btn btn-sm btn-success me-1 fw-semibold" onClick={() => entregar(o)} title="Marcar como entregada"><i className="bi bi-box-arrow-right me-1"></i>Entregar</button>
+                      )}
                       <button className="btn btn-sm btn-outline-secondary me-1" onClick={() => setAbierta(abierta === o._id ? null : o._id)} title="Ver detalle"><i className="bi bi-eye"></i></button>
                       <button className="btn btn-sm btn-outline-dark me-1" onClick={() => printOrder(o, 'cliente')} title="Imprimir factura"><i className="bi bi-receipt"></i></button>
                       <button className="btn btn-sm btn-outline-dark me-1" onClick={() => printOrder(o, 'cocina')} title="Imprimir comanda"><i className="bi bi-printer"></i></button>

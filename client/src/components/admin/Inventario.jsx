@@ -3,18 +3,27 @@ import toast from 'react-hot-toast';
 import { swalBootstrap } from '../../utils/swalConfig';
 import { api } from '../../utils/api';
 import { money, precioDesde } from '../../utils/format';
-import { PLACEHOLDER_IMG } from '../../config';
+import { CATEGORIAS, PLACEHOLDER_IMG } from '../../config';
 import ProductForm from '../ProductForm';
 
 /** Inventario: admin edita todo; caja sólo marca productos agotados. */
 export default function Inventario({ productos, setProductos, reload, isAdmin }) {
   const [q, setQ] = useState('');
+  const [cat, setCat] = useState('Todos'); // categoría o 'Agotados'
   const [editing, setEditing] = useState(undefined); // undefined = cerrado, null = nuevo
+
+  const categorias = useMemo(() => {
+    const presentes = new Set(productos.map(p => p.categoria));
+    return [...CATEGORIAS.filter(c => presentes.has(c)), ...[...presentes].filter(c => !CATEGORIAS.includes(c))];
+  }, [productos]);
+  const agotados = productos.filter(p => p.disponible === false).length;
 
   const visibles = useMemo(() => {
     const s = q.trim().toLowerCase();
-    return s ? productos.filter(p => `${p.nombre} ${p.categoria}`.toLowerCase().includes(s)) : productos;
-  }, [productos, q]);
+    return productos
+      .filter(p => cat === 'Todos' || (cat === 'Agotados' ? p.disponible === false : p.categoria === cat))
+      .filter(p => !s || `${p.nombre} ${p.categoria}`.toLowerCase().includes(s));
+  }, [productos, q, cat]);
 
   const toggleDisponible = async (p) => {
     const disponible = p.disponible === false;
@@ -62,6 +71,14 @@ export default function Inventario({ productos, setProductos, reload, isAdmin })
           </button>
         )}
       </div>
+      <div className="px-3 py-2 border-bottom filter-scroll">
+        {['Todos', ...categorias].map(c => (
+          <button key={c} className={`filter-btn filter-btn-sm ${cat === c ? 'active' : ''}`} onClick={() => setCat(c)}>{c}</button>
+        ))}
+        <button className={`filter-btn filter-btn-sm ${cat === 'Agotados' ? 'active' : ''}`} onClick={() => setCat('Agotados')} disabled={!agotados}>
+          <i className="bi bi-slash-circle me-1"></i>Agotados <span className="opacity-75 ms-1">{agotados}</span>
+        </button>
+      </div>
       <div className="table-responsive">
         <table className="table table-hover align-middle mb-0 table-sm-touch">
           <thead className="table-light small">
@@ -88,6 +105,7 @@ export default function Inventario({ productos, setProductos, reload, isAdmin })
                 )}
               </tr>
             ))}
+            {visibles.length === 0 && <tr><td colSpan={6} className="text-center text-muted py-4">Sin productos en este filtro</td></tr>}
           </tbody>
         </table>
       </div>

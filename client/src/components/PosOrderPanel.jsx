@@ -255,7 +255,7 @@ export default function PosOrderPanel({ open, onClose, mesasOcupadas, activas = 
             <div className="segmented" role="group" aria-label="Método de pago">
               {METODOS_PAGO.map(m => (
                 <button key={m.id} className={metodoPago === m.id ? 'active' : ''} onClick={() => setMetodoPago(m.id)} title={m.id}>
-                  <i className={`bi ${m.icon}`}></i><span className="d-none d-xl-inline ms-1">{m.id}</span>
+                  <i className={`bi ${m.icon}`}></i><span className="ms-1">{m.id === 'Transferencia' ? 'Transf.' : m.id}</span>
                 </button>
               ))}
             </div>
