@@ -69,7 +69,8 @@ button, .btn { touch-action: manipulation; }
 @media (max-width: 575.98px) {
   .admin-tabs { overflow-x: auto; scrollbar-width: none; }
   .admin-tabs::-webkit-scrollbar { display: none; }
-  .segmented.admin-tabs button { flex: 1 0 auto; min-width: 54px; flex-direction: column; gap: 1px; font-size: 0.66rem; padding: 6px 4px; }
+  /* Las 6 pestañas se reparten el ancho: caben desde 360 px sin desplazar */
+  .segmented.admin-tabs button { flex: 1 1 auto; min-width: 0; flex-direction: column; gap: 1px; font-size: 0.62rem; letter-spacing: -0.2px; padding: 6px 1px; }
   .segmented.admin-tabs button .bi { font-size: 1rem; }
 }
 .search-input { border-radius: 999px; padding-left: 38px; }
