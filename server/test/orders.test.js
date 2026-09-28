@@ -13,7 +13,8 @@ const PRODUCTOS = [
     { id: 9, nombre: 'Agotado', categoria: 'Porciones', precios: { unico: 5000 }, disponible: false }
 ];
 Product.find = (q) => ({ lean: async () => PRODUCTOS.filter(p => q.id.$in.includes(p.id)) });
-Counter.next = async () => 7;
+const contadores = {};
+Counter.next = async (nombre) => (contadores[nombre] = (contadores[nombre] || 0) + 1);
 Order.create = async (o) => ({ _id: 'x', ...o });
 Config.findById = () => ({ lean: async () => null });
 Config.updateOne = async () => ({});
@@ -50,6 +51,22 @@ test('pedidos', async (t) => {
         assert.equal((await api.post('/api/orders', { body: web({ desechables: { vasos: 1 } }) }))[0], 400);
         const [st] = await api.post('/api/orders', { body: web({ items: [item(75, 'unico')], desechables: { vasos: 1 } }) });
         assert.equal(st, 201);
+    });
+
+    await t.test('los domicilios llevan un consecutivo propio que arranca en 1 cada día', async () => {
+        for (const k of Object.keys(contadores)) delete contadores[k];
+        const [, d1] = await api.post('/api/orders', { body: web() });
+        const [, d2] = await api.post('/api/orders', { body: web() });
+        const [, rec] = await api.post('/api/orders', { body: web({ tipo: 'Llevar' }) });
+        assert.equal(d1.numeroDomicilio, 1);
+        assert.equal(d2.numeroDomicilio, 2);
+        assert.equal(rec.numeroDomicilio, undefined);
+        assert.equal(rec.numero, 3); // el consecutivo general sigue contando todo
+        t.mock.timers.setTime(new Date('2026-09-24T17:00:00Z').getTime());
+        const [, otroDia] = await api.post('/api/orders', { body: web() });
+        assert.equal(otroDia.numeroDomicilio, 1);
+        assert.deepEqual(Object.keys(contadores).filter(k => k.startsWith('domicilio-')), ['domicilio-2026-09-23', 'domicilio-2026-09-24']);
+        t.mock.timers.setTime(new Date('2026-09-23T17:00:00Z').getTime());
     });
 
     await t.test('la web no puede crear pedidos de mesa (se trata como domicilio)', async () => {

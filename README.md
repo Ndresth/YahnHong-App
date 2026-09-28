@@ -23,6 +23,8 @@ Sistema para restaurante: menú público con pedidos por WhatsApp, POS para mese
 - **Adicionar a un pedido en cocina:** al tocar una mesa ocupada aparece "Adicionar a #N"; para llevar o domicilio, botón **Adicionar a un pedido que ya está en cocina**. Los productos nuevos suman al total, la orden vuelve a cocina si ya estaba lista o entregada, y en cocina se resaltan con la hora de la adición (sonido y comanda "ADICIÓN" solo con lo nuevo).
 - **Pago dividido:** en el POS, **Dividir pago entre varios métodos** (hasta 4); en Caja → Órdenes, opción **Dividir pago…** en la columna Pago. La última parte se calcula sola. Cada parte suma a su método en caja, cierre, reportes y Excel. Si a una orden con pago dividido se le adiciona, el pago queda en el método de mayor valor y caja debe ajustarlo.
 - **Categorías solo POS:** `categoriasSoloPos` en `shared/config.json` (hoy: **Combos** — Combo $14.000, Combo con Carne $15.000 — **Cajas** — Caja C1 $500, Caja J1 $1.000 — y **Salsas** — Salsa Agridulce $500). Se venden en el POS pero no salen en el menú web ni se pueden pedir desde la web.
+- **Tamaños:** se muestran como **1x** (familiar), **1/2** (mediano) y **1/4** (personal) en POS, web, cocina, facturas y reportes. En la BD siguen siendo `familiar`/`mediano`/`personal`.
+- **Consecutivo de domicilios:** cada domicilio (POS o web) recibe `numeroDomicilio` 1, 2, 3… que arranca en 1 cada día (hora de Colombia), aparte del `numero` general de la orden. Contador en `counters` con id `domicilio-AAAA-MM-DD`.
 
 ## Horario de atención
 

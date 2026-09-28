@@ -9,7 +9,7 @@ const { requireAuth, optionalAuth, ROLES, STAFF } = require('../middleware/auth'
 const { cleanText, isObjectId, HttpError } = require('../lib/util');
 const events = require('../lib/events');
 const { buildDesechables, CATEGORIA_BEBIDAS } = require('../lib/desechables');
-const { parseHoraProgramada, sumarDias, TZ } = require('../lib/fechas');
+const { diaBogota, parseHoraProgramada, sumarDias, TZ } = require('../lib/fechas');
 const horario = require('../lib/horario');
 const diasCerrados = require('../lib/diasCerrados');
 const { categoriasSoloPos } = require('../../shared/config.json');
@@ -131,8 +131,10 @@ router.post('/', optionalAuth, publicOrderLimiter, async (req, res) => {
     if (pagos) cliente.metodoPago = 'Mixto';
 
     const numero = await Counter.next('orden');
+    // Consecutivo propio de domicilios: arranca en 1 cada día (un contador por fecha de Colombia)
+    const numeroDomicilio = tipo === 'Domicilio' ? await Counter.next(`domicilio-${diaBogota()}`) : undefined;
     const orden = await Order.create({
-        tipo, numeroMesa, cliente, items, total, numero, horaProgramada, ...(pagos ? { pagos } : {}),
+        tipo, numeroMesa, cliente, items, total, numero, numeroDomicilio, horaProgramada, ...(pagos ? { pagos } : {}),
         origen: esStaff ? 'POS' : 'Web',
         usuario: esStaff ? req.user.nombre || req.user.role : 'Web'
     });

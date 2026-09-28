@@ -38,8 +38,11 @@ export const METODOS_PAGO = [
   { id: 'Tarjeta', icon: 'bi-credit-card' }
 ];
 
-export const TAMANO_LABEL = { familiar: 'Familiar', mediano: 'Mediano', personal: 'Personal', unico: 'Único' };
-export const TAMANO_CORTO = { familiar: 'F', mediano: 'M', personal: 'P', unico: '' };
+/** Cómo se muestra el tamaño en pedidos, cocina, facturas y botones: familiar = 1x, mediano = 1/2, personal = 1/4. */
+export const TAMANO_LABEL = { familiar: '1x', mediano: '1/2', personal: '1/4', unico: 'Único' };
+export const TAMANO_CORTO = { familiar: '1x', mediano: '1/2', personal: '1/4', unico: '' };
+/** Nombre del campo de precio en el formulario de productos. */
+export const TAMANO_NOMBRE = { familiar: 'Familiar (1x)', mediano: 'Mediano (1/2)', personal: 'Personal (1/4)', unico: 'Único' };
 
 export const PLACEHOLDER_IMG = '/images/placeholder.svg';
 

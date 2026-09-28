@@ -36,7 +36,7 @@ export default function OrdenesTurno({ ordenes, onChange }) {
     const f = FILTROS.find(x => x.id === filtro) || FILTROS[0];
     return ordenes
       .filter(f.ok)
-      .filter(o => !s || `${o.numero} ${o.cliente?.nombre} ${o.numeroMesa ?? ''} ${o.tipo}`.toLowerCase().includes(s));
+      .filter(o => !s || `${o.numero} ${o.numeroDomicilio ?? ''} ${o.cliente?.nombre} ${o.numeroMesa ?? ''} ${o.tipo}`.toLowerCase().includes(s));
   }, [ordenes, q, filtro]);
 
   const entregar = async (o) => {
@@ -119,6 +119,7 @@ export default function OrdenesTurno({ ordenes, onChange }) {
                     <td>{hora(o.fecha)}</td>
                     <td>
                       {o.tipo === 'Mesa' ? `Mesa ${o.numeroMesa}` : o.tipo === 'Llevar' && o.origen === 'Web' ? 'Recoger' : o.tipo}
+                      {o.numeroDomicilio && <span className="badge bg-danger-subtle text-danger-emphasis ms-1" title="Consecutivo de domicilios del día">{o.numeroDomicilio}</span>}
                       {o.origen === 'Web' && <span className="badge bg-info-subtle text-info-emphasis ms-1">Web</span>}
                       {o.horaProgramada && <div className="small text-primary fw-semibold"><i className="bi bi-alarm me-1"></i>{hora(o.horaProgramada)}</div>}
                     </td>

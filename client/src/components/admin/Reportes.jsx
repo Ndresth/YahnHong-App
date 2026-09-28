@@ -190,7 +190,7 @@ function DetalleDia({ dia, onClose }) {
                               <tr key={o._id} className={o.estado === 'Cancelado' ? 'text-decoration-line-through text-muted' : ''}>
                                 <td className="ps-3">{o.numero ?? '—'}</td>
                                 <td className="text-nowrap">{hora(o.fecha)}{o.horaProgramada && <div className="text-primary"><i className="bi bi-alarm me-1"></i>{hora(o.horaProgramada)}</div>}</td>
-                                <td className="text-nowrap">{o.tipo === 'Mesa' ? `Mesa ${o.numeroMesa}` : nombreTipo(o.tipo, o.origen)}{o.origen === 'Web' && <span className="badge bg-info-subtle text-info-emphasis ms-1">Web</span>}</td>
+                                <td className="text-nowrap">{o.tipo === 'Mesa' ? `Mesa ${o.numeroMesa}` : nombreTipo(o.tipo, o.origen)}{o.numeroDomicilio ? ` ${o.numeroDomicilio}` : ''}{o.origen === 'Web' && <span className="badge bg-info-subtle text-info-emphasis ms-1">Web</span>}</td>
                                 <td style={{ minWidth: 180 }}>
                                   {o.tipo !== 'Mesa' && <div className="fw-semibold">{o.cliente?.nombre}</div>}
                                   <span className="text-muted">{(o.items || []).filter(i => !i.extra).map(i => `${i.cantidad}× ${i.nombre}`).join(', ')}</span>
