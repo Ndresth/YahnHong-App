@@ -46,7 +46,7 @@ const tamano = (t) => TAMANO_LABEL[t] || t || '';
 const tituloTipo = (o) => {
     if (o.tipo === 'Mesa') return `MESA ${esc(o.numeroMesa)}`;
     if (o.tipo === 'Llevar') return o.origen === 'Web' ? 'RECOGER EN LOCAL' : 'PARA LLEVAR';
-    return 'DOMICILIO';
+    return o.numeroDomicilio ? `DOMICILIO #${esc(o.numeroDomicilio)}` : 'DOMICILIO';
 };
 
 const horaProg = (o) => new Date(o.horaProgramada).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' });

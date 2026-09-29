@@ -102,7 +102,7 @@ export default function CartSidebar({ isOpen, onClose, horario }) {
         }
       });
 
-      let msg = `*PEDIDO WEB #${orden.numero} - ${NEGOCIO.nombre}*\n*${esDomicilio ? 'DOMICILIO' : 'PARA RECOGER EN EL LOCAL'}*\n\n`;
+      let msg = `*PEDIDO WEB #${orden.numero} - ${NEGOCIO.nombre}*\n*${esDomicilio ? `DOMICILIO${orden.numeroDomicilio ? ` #${orden.numeroDomicilio}` : ''}` : 'PARA RECOGER EN EL LOCAL'}*\n\n`;
       msg += `*Cliente:* ${orden.cliente.nombre}\n*Tel:* ${orden.cliente.telefono}\n`;
       if (esDomicilio) msg += `*Dir:* ${orden.cliente.direccion}\n`;
       msg += `*${esDomicilio ? 'Entregar' : 'Recoger'}:* ${programado ? `a las ${hora12(horaFinal)}` : 'lo antes posible'}\n`;

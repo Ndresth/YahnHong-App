@@ -133,7 +133,7 @@ router.get('/dia/:dia', ADMIN, async (req, res) => {
     const enRango = { fecha: { $gte: ini, $lt: fin } };
     const [ordenes, gastos] = await Promise.all([
         Order.find(enRango).sort({ fecha: 1 }).limit(1000)
-            .select('numero fecha tipo numeroMesa origen horaProgramada cliente.nombre cliente.metodoPago pagos items.nombre items.cantidad items.tamaño items.extra total estado usuario')
+            .select('numero numeroDomicilio fecha tipo numeroMesa origen horaProgramada cliente.nombre cliente.metodoPago pagos items.nombre items.cantidad items.tamaño items.extra total estado usuario')
             .lean(),
         Gasto.find(enRango).sort({ fecha: 1 }).select('descripcion monto fecha usuario').lean()
     ]);

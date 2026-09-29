@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CATEGORIAS, PLACEHOLDER_IMG, TAMANO_LABEL } from '../config';
+import { CATEGORIAS, PLACEHOLDER_IMG, TAMANO_NOMBRE } from '../config';
 
 const VACIO = { nombre: '', categoria: CATEGORIAS[0], descripcion: '', imagen: '', disponible: true, precios: { familiar: 0, mediano: 0, personal: 0, unico: 0 } };
 
@@ -64,11 +64,11 @@ export default function ProductForm({ productToEdit, onClose, onSave }) {
                   </div>
 
                   <div className="col-12"><hr className="my-1" /><h6 className="fw-bold text-secondary mb-0"><i className="bi bi-tag-fill me-2"></i>Precios</h6>
-                    <div className="form-text">Use tamaños (familiar/mediano/personal) <b>o</b> precio único, no ambos.</div>
+                    <div className="form-text">Use tamaños (1x / 1/2 / 1/4) <b>o</b> precio único, no ambos.</div>
                   </div>
                   {['familiar', 'mediano', 'personal', 'unico'].map(t => (
                     <div key={t} className="col-6 col-md-3">
-                      <label className={`form-label small ${t === 'unico' ? 'fw-bold text-primary' : ''}`} htmlFor={`pf-${t}`}>{TAMANO_LABEL[t]}</label>
+                      <label className={`form-label small ${t === 'unico' ? 'fw-bold text-primary' : ''}`} htmlFor={`pf-${t}`}>{TAMANO_NOMBRE[t]}</label>
                       <input id={`pf-${t}`} type="number" inputMode="numeric" min="0" step="100" name={t} className="form-control"
                         value={p[t] || ''} placeholder="0" onChange={handlePriceChange}
                         disabled={t === 'unico' ? hasSizes : hasUnique} />

@@ -19,7 +19,7 @@ const TIPOS = [
 const PARTES_INICIALES = [{ metodo: 'Efectivo', monto: '' }, { metodo: 'Nequi', monto: '' }];
 
 /** "#12 · Mesa 5" / "#13 · Llevar · Ana" */
-const etiquetaOrden = (o) => `#${o.numero ?? '—'} · ${o.tipo === 'Mesa' ? `Mesa ${o.numeroMesa}` : `${o.tipo === 'Llevar' ? 'Llevar' : 'Domicilio'} · ${o.cliente?.nombre || ''}`}`;
+const etiquetaOrden = (o) => `#${o.numero ?? '—'} · ${o.tipo === 'Mesa' ? `Mesa ${o.numeroMesa}` : `${o.tipo === 'Llevar' ? 'Llevar' : `Domicilio${o.numeroDomicilio ? ` ${o.numeroDomicilio}` : ''}`} · ${o.cliente?.nombre || ''}`}`;
 
 /**
  * Panel de la cuenta actual en el POS (fijo a la derecha en tablet/PC, hoja inferior en celular).
@@ -106,7 +106,7 @@ export default function PosOrderPanel({ open, onClose, mesasOcupadas, activas = 
           desechables: desechablesParaEnviar(desechables, tieneBebida)
         }
       });
-      toast.success(`Orden #${orden.numero} enviada a cocina`);
+      toast.success(`Orden #${orden.numero}${orden.numeroDomicilio ? ` · Domicilio ${orden.numeroDomicilio}` : ''} enviada a cocina`);
       if (imprimir) printOrder(orden, 'cocina');
       reset();
       onSent?.(orden);

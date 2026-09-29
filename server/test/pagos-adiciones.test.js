@@ -27,7 +27,8 @@ test('pagosDe y textoPago', () => {
 const PRODUCTOS = [
     { id: 1, nombre: 'Arroz Paisa', categoria: 'Arroz Frito', precios: { familiar: 50000 } },
     { id: 75, nombre: 'Coca Cola 1.5', categoria: 'Bebidas', precios: { unico: 9000 } },
-    { id: 85, nombre: 'C1', categoria: 'Cajas', precios: { unico: 500 } }
+    { id: 85, nombre: 'C1', categoria: 'Cajas', precios: { unico: 500 } },
+    { id: 88, nombre: 'Salsa Agridulce', categoria: 'Salsas', precios: { unico: 500 } }
 ];
 Product.find = (q) => ({ lean: async () => PRODUCTOS.filter(p => q.id.$in.includes(p.id)) });
 Product.exists = async (q) => PRODUCTOS.some(p => q.id.$in.includes(p.id) && p.categoria === q.categoria);
@@ -65,10 +66,11 @@ test('rutas', async (t) => {
         assert.equal((await api.post('/api/orders', { token: mesera, body: { ...body, pagos: [{ metodo: 'Efectivo', monto: 1 }, { metodo: 'Nequi', monto: 1 }] } }))[0], 400);
     });
 
-    await t.test('Cajas: se venden en el POS pero no en la web', async () => {
-        const items = [{ productoId: 85, tamaño: 'unico', cantidad: 2 }];
-        const [st] = await api.post('/api/orders', { token: mesera, body: { tipo: 'Llevar', items } });
+    await t.test('Cajas y Salsas: se venden en el POS pero no en la web', async () => {
+        const items = [{ productoId: 85, tamaño: 'unico', cantidad: 2 }, { productoId: 88, tamaño: 'unico', cantidad: 3 }];
+        const [st, o] = await api.post('/api/orders', { token: mesera, body: { tipo: 'Llevar', items } });
         assert.equal(st, 201);
+        assert.equal(o.total, 2 * 500 + 3 * 500);
         const [stWeb, e] = await api.post('/api/orders', { body: { tipo: 'Domicilio', cliente: { nombre: 'Ana', telefono: '3001234567', direccion: 'Cl 1' }, items } });
         assert.equal(stWeb, 400);
         assert.match(e.message, /no está disponible en la web/);

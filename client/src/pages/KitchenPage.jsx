@@ -177,7 +177,7 @@ export default function KitchenPage() {
               {programados.map(o => (
                 <div key={o._id} className="kds-prog-chip">
                   <span className="fw-bold">{hora(o.horaProgramada)}</span>
-                  <span>#{o.numero} · {o.tipo === 'Llevar' ? 'Recoger' : o.tipo}{o.tipo !== 'Mesa' && ` · ${o.cliente?.nombre || ''}`}</span>
+                  <span>#{o.numero} · {o.tipo === 'Llevar' ? 'Recoger' : o.tipo}{o.numeroDomicilio ? ` ${o.numeroDomicilio}` : ''}{o.tipo !== 'Mesa' && ` · ${o.cliente?.nombre || ''}`}</span>
                   <span className="opacity-75">{o.items.filter(i => !i.extra).reduce((a, i) => a + i.cantidad, 0)} platos · faltan {faltan(minutosPara(o.horaProgramada, now))}</span>
                 </div>
               ))}
@@ -200,7 +200,7 @@ export default function KitchenPage() {
                 <article key={o._id} className={`kds-card ${alerta} ${nuevas.has(o._id) ? 'nueva' : ''}`}>
                   <header className={`kds-head ${o.tipo}`}>
                     <span className="fs-5">
-                      {o.tipo === 'Mesa' ? `MESA ${o.numeroMesa}` : o.tipo === 'Llevar' ? (o.origen === 'Web' ? 'RECOGER' : 'PARA LLEVAR') : 'DOMICILIO'}
+                      {o.tipo === 'Mesa' ? `MESA ${o.numeroMesa}` : o.tipo === 'Llevar' ? (o.origen === 'Web' ? 'RECOGER' : 'PARA LLEVAR') : `DOMICILIO${o.numeroDomicilio ? ` ${o.numeroDomicilio}` : ''}`}
                     </span>
                     <span className="d-flex align-items-center gap-2">
                       <span className="opacity-75">#{o.numero}</span>

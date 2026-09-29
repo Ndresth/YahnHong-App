@@ -11,6 +11,7 @@ const { METODOS_PAGO } = require('../lib/pagos');
 const OrderSchema = new mongoose.Schema({
   fecha: { type: Date, default: Date.now },
   numero: { type: Number }, // Consecutivo del turno (se reinicia en cada cierre)
+  numeroDomicilio: { type: Number, default: undefined }, // Solo domicilios: 1, 2, 3… se reinicia cada día
 
   // Clasificación Operativa
   tipo: { type: String, required: true, enum: TIPOS },
