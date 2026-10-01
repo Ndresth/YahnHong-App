@@ -9,6 +9,7 @@ import { money } from '../utils/format';
 import MenuBrowser from '../components/MenuBrowser';
 import ProductSidebar from '../components/ProductSidebar';
 import CartSidebar from '../components/CartSidebar';
+import BotonTema from '../components/BotonTema';
 
 export default function PublicMenu() {
   const { productos, loading } = useProducts();
@@ -68,7 +69,8 @@ export default function PublicMenu() {
       )}
 
       <main style={{ paddingBottom: totalItems > 0 ? 90 : 20 }}>
-        <MenuBrowser productos={productos} loading={loading} onSelect={setSelected} onQuickAdd={agregarRapido} enCarrito={enCarrito} />
+        <MenuBrowser productos={productos} loading={loading} onSelect={setSelected} onQuickAdd={agregarRapido} enCarrito={enCarrito}
+          junto={<BotonTema className="btn btn-tema rounded-circle" />} />
       </main>
 
       {totalItems > 0 && !isCartOpen && (

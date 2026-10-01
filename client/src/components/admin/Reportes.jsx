@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { api, downloadFile } from '../../utils/api';
+import { CLAVES } from '../../utils/queryClient';
+import { useTema } from '../../hooks/useTema';
 import { money, hora } from '../../utils/format';
 import { COLOR_METODO, METODOS_PAGO, TAMANO_LABEL } from '../../config';
 import { textoPago } from '../../utils/pagos';
@@ -79,19 +82,28 @@ const TooltipVentas = ({ active, payload, label, formatLabel }) => {
   );
 };
 
-const GraficoBarras = ({ data, xKey, xFormat, labelFormat, onClick, height = 260 }) => (
-  <div style={{ height }}>
-    <ResponsiveContainer>
-      <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} onClick={onClick ? (e) => e?.activeLabel !== undefined && onClick(e.activeLabel) : undefined}>
-        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e4e4e7" />
-        <XAxis dataKey={xKey} tickFormatter={xFormat} fontSize={12} tickLine={false} axisLine={{ stroke: '#d4d4d8' }} interval="preserveStartEnd" />
-        <YAxis tickFormatter={kFmt} fontSize={12} width={40} tickLine={false} axisLine={false} />
-        <Tooltip content={<TooltipVentas formatLabel={labelFormat} />} cursor={{ fill: 'rgba(0,0,0,0.05)' }} />
-        <Bar dataKey="ventas" fill={COLOR_VENTAS} radius={[4, 4, 0, 0]} maxBarSize={36} style={onClick ? { cursor: 'pointer' } : undefined} />
-      </BarChart>
-    </ResponsiveContainer>
-  </div>
-);
+// Colores de las gráficas según el tema (en oscuro, líneas y textos más claros)
+const COLORES_GRAFICO = {
+  claro: { grid: '#e4e4e7', eje: '#d4d4d8', cursor: 'rgba(0,0,0,0.05)', ticks: {} },
+  oscuro: { grid: '#343a40', eje: '#495057', cursor: 'rgba(255,255,255,0.06)', ticks: { tick: { fill: '#adb5bd' } } }
+};
+
+const GraficoBarras = ({ data, xKey, xFormat, labelFormat, onClick, height = 260 }) => {
+  const c = COLORES_GRAFICO[useTema().tema];
+  return (
+    <div style={{ height }}>
+      <ResponsiveContainer>
+        <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} onClick={onClick ? (e) => e?.activeLabel !== undefined && onClick(e.activeLabel) : undefined}>
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={c.grid} />
+          <XAxis dataKey={xKey} tickFormatter={xFormat} fontSize={12} tickLine={false} axisLine={{ stroke: c.eje }} interval="preserveStartEnd" {...c.ticks} />
+          <YAxis tickFormatter={kFmt} fontSize={12} width={40} tickLine={false} axisLine={false} {...c.ticks} />
+          <Tooltip content={<TooltipVentas formatLabel={labelFormat} />} cursor={{ fill: c.cursor }} />
+          <Bar dataKey="ventas" fill={COLOR_VENTAS} radius={[4, 4, 0, 0]} maxBarSize={36} style={onClick ? { cursor: 'pointer' } : undefined} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+};
 
 const TopProductos = ({ productos }) => (
   <div className="table-responsive">
@@ -129,14 +141,13 @@ const fmtHora = (h) => `${h}:00`;
 
 /** Detalle de un día: resumen, horas, productos y lista de órdenes. */
 function DetalleDia({ dia, onClose }) {
-  const [rep, setRep] = useState(null);
-  const [det, setDet] = useState(null);
-
-  useEffect(() => {
-    Promise.all([api(`/api/reportes?desde=${dia}&hasta=${dia}`), api(`/api/reportes/dia/${dia}`)])
-      .then(([r, d]) => { setRep(r); setDet(d); })
-      .catch(e => { toast.error(e.message); onClose(); });
-  }, [dia, onClose]);
+  const { data, isError } = useQuery({
+    queryKey: CLAVES.reporteDia(dia),
+    queryFn: () => Promise.all([api(`/api/reportes?desde=${dia}&hasta=${dia}`), api(`/api/reportes/dia/${dia}`)]),
+    meta: { errorToast: 'rep-dia' }
+  });
+  const [rep, det] = data || [null, null];
+  useEffect(() => { if (isError) onClose(); }, [isError, onClose]);
 
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose();
@@ -223,8 +234,8 @@ function DetalleDia({ dia, onClose }) {
 }
 
 function HistorialCierres() {
-  const [cierres, setCierres] = useState(null);
-  useEffect(() => { api('/api/cierres').then(setCierres).catch(e => { toast.error(e.message); setCierres([]); }); }, []);
+  const { data, isError } = useQuery({ queryKey: CLAVES.cierres, queryFn: () => api('/api/cierres'), meta: { errorToast: 'cierres-err' } });
+  const cierres = isError ? [] : (data ?? null);
 
   const descargar = (id) => toast.promise(
     downloadFile(`/api/ventas/excel/${id}`, `Reporte_${id}.xlsx`),
@@ -270,9 +281,6 @@ export default function Reportes() {
   const [modo, setModo] = useState('semana');
   const [ancla, setAncla] = useState(hoy);
   const [rango, setRango] = useState(() => ({ desde: sumarDias(hoy(), -29), hasta: hoy() }));
-  const [datos, setDatos] = useState(null);
-  const [anterior, setAnterior] = useState(null);
-  const [cargado, setCargado] = useState(''); // clave del periodo que ya llegó (o falló)
   const [diaSel, setDiaSel] = useState(null);
   const [verCierres, setVerCierres] = useState(false);
   const cerrarDia = useCallback(() => setDiaSel(null), []);
@@ -280,21 +288,25 @@ export default function Reportes() {
   const periodo = useMemo(() => calcularPeriodo(modo, ancla, rango), [modo, ancla, rango]);
   const { desde, hasta, prev } = periodo;
   const rangoValido = desde <= hasta && diasEntre(desde, hasta) <= 400;
-  const clave = `${desde}|${hasta}`;
-  const cargando = rangoValido && cargado !== clave;
-
-  useEffect(() => {
-    if (!rangoValido) return;
-    let vigente = true;
-    Promise.all([
-      api(`/api/reportes?desde=${desde}&hasta=${hasta}`),
-      api(`/api/reportes?desde=${prev.desde}&hasta=${prev.hasta}`).catch(() => null)
-    ])
-      .then(([actual, previo]) => { if (vigente) { setDatos(actual); setAnterior(previo); } })
-      .catch(e => vigente && toast.error(e.message))
-      .finally(() => vigente && setCargado(`${desde}|${hasta}`));
-    return () => { vigente = false; };
-  }, [desde, hasta, prev.desde, prev.hasta, rangoValido]);
+  // Cada periodo queda en caché: volver a una semana o mes ya visto es instantáneo,
+  // y el periodo anterior de uno es el actual del otro (se pide una sola vez).
+  const actualQ = useQuery({
+    queryKey: CLAVES.reporte(desde, hasta),
+    queryFn: () => api(`/api/reportes?desde=${desde}&hasta=${hasta}`),
+    enabled: rangoValido,
+    placeholderData: keepPreviousData, // mientras llega el nuevo periodo se sigue viendo el anterior
+    meta: { errorToast: 'rep-err' }
+  });
+  const anteriorQ = useQuery({
+    queryKey: CLAVES.reporte(prev.desde, prev.hasta),
+    queryFn: () => api(`/api/reportes?desde=${prev.desde}&hasta=${prev.hasta}`),
+    enabled: rangoValido,
+    placeholderData: keepPreviousData
+  });
+  const datos = actualQ.data ?? null;
+  const anterior = anteriorQ.isPlaceholderData ? null : (anteriorQ.data ?? null);
+  const esperando = (q) => q.fetchStatus === 'fetching' && (q.isPending || q.isPlaceholderData);
+  const cargando = rangoValido && (esperando(actualQ) || esperando(anteriorQ));
 
   const mover = (dir) => {
     if (modo === 'semana') setAncla(a => sumarDias(semanaDe(a).desde, dir * 7));

@@ -3,6 +3,7 @@ const Usuario = require('../models/UsuarioModel');
 const { ROLES_USUARIO } = require('../models/UsuarioModel');
 const { requireAuth, ROLES } = require('../middleware/auth');
 const { cleanText, isObjectId, HttpError } = require('../lib/util');
+const { esquemas, validar } = require('../lib/esquemas');
 const { claveKey, hashClave, invalidar, soloIndividuales, setSoloIndividuales } = require('../lib/usuarios');
 
 const router = express.Router();
@@ -23,7 +24,7 @@ router.get('/', async (req, res) => {
     res.json({ usuarios, soloIndividuales: solo });
 });
 
-router.post('/', async (req, res) => {
+router.post('/', validar(esquemas.usuarioNuevo), async (req, res) => {
     const nombre = cleanText(req.body?.nombre, 40);
     const rol = req.body?.rol;
     if (nombre.length < 2) throw new HttpError(400, 'El nombre es obligatorio');
@@ -37,7 +38,7 @@ router.post('/', async (req, res) => {
 });
 
 // Cambiar rol, activar/desactivar o poner nueva clave (cierra sus sesiones abiertas)
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', validar(esquemas.usuarioCambio), async (req, res) => {
     if (!isObjectId(req.params.id)) throw new HttpError(400, 'ID inválido');
     const cambios = {};
     if (req.body?.rol !== undefined) {
@@ -65,7 +66,7 @@ router.delete('/:id', async (req, res) => {
     res.json({ message: 'Eliminado' });
 });
 
-router.put('/solo-individuales', async (req, res) => {
+router.put('/solo-individuales', validar(esquemas.soloIndividuales), async (req, res) => {
     await setSoloIndividuales(req.body?.valor);
     res.json({ soloIndividuales: await soloIndividuales() });
 });

@@ -1,20 +1,26 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCart } from '../context/CartContext';
 import { useProducts } from '../hooks/useProducts';
-import { useLiveEvents, useVisibleInterval } from '../hooks/useLiveEvents';
+import { useLiveEvents } from '../hooks/useLiveEvents';
 import { api } from '../utils/api';
+import { CLAVES } from '../utils/queryClient';
 import { money } from '../utils/format';
 import { TAMANO_CORTO } from '../config';
 import StaffNav from '../components/StaffNav';
 import MenuBrowser from '../components/MenuBrowser';
 import PosOrderPanel from '../components/PosOrderPanel';
 
+const SIN_ORDENES = [];
+
 export default function PosPage() {
-  const { productos, loading, reload } = useProducts();
+  const { productos, loading } = useProducts({ refetchInterval: 60000 });
   const { addToCart, totalItems, total } = useCart();
   const [panelOpen, setPanelOpen] = useState(false);
-  const [activas, setActivas] = useState([]);
+  const queryClient = useQueryClient();
+  // Órdenes en curso (mesas ocupadas / adicionar); la misma copia que usa Cocina
+  const { data: activas = SIN_ORDENES } = useQuery({ queryKey: CLAVES.ordenesActivas, queryFn: () => api('/api/orders'), refetchInterval: 60000 });
   // Vista de productos: con fotos o lista compacta (se recuerda en este equipo)
   const [compacto, setCompacto] = useState(() => { try { return localStorage.getItem('posVista') === 'lista'; } catch { return false; } });
   const toggleCompacto = () => setCompacto(v => {
@@ -22,14 +28,11 @@ export default function PosPage() {
     return !v;
   });
 
-  const cargarActivas = useCallback(() => {
-    api('/api/orders').then(setActivas).catch(() => {});
-  }, []);
+  const cargarActivas = () => queryClient.invalidateQueries({ queryKey: CLAVES.ordenesActivas });
 
   const live = useLiveEvents((type) => {
     if (type === 'conectado' || type.startsWith('orden:') || type === 'caja:cerrada') cargarActivas();
   });
-  useVisibleInterval(() => { cargarActivas(); reload(); }, 60000);
 
   const mesasOcupadas = useMemo(
     () => new Set(activas.filter(o => o.tipo === 'Mesa').map(o => String(o.numeroMesa))),

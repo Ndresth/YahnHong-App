@@ -173,7 +173,7 @@ export default function PosOrderPanel({ open, onClose, mesasOcupadas, activas = 
         {cart.length > 0 && <DesechablesPicker value={desechables} onChange={setDesechables} tieneBebida={tieneBebida} compact />}
       </div>
 
-      <div className="pos-order-footer border-top bg-light">
+      <div className="pos-order-footer border-top bg-body-tertiary">
         {destino ? (
           <div className="destino-adicion mb-2">
             <div className="min-w-0">

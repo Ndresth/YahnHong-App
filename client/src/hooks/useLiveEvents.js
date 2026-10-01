@@ -70,18 +70,3 @@ export function useLiveEvents(onEvent) {
 
   return connected;
 }
-
-/**
- * Ejecuta `fn` cada `ms`, pero sólo si la pestaña está visible.
- * Se usa como respaldo del stream en tiempo real.
- */
-export function useVisibleInterval(fn, ms) {
-  const saved = useRef(fn);
-  useEffect(() => { saved.current = fn; });
-  useEffect(() => {
-    const tick = () => { if (document.visibilityState === 'visible') saved.current(); };
-    const id = setInterval(tick, ms);
-    document.addEventListener('visibilitychange', tick);
-    return () => { clearInterval(id); document.removeEventListener('visibilitychange', tick); };
-  }, [ms]);
-}

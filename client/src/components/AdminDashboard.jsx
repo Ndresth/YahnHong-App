@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import StaffNav from './StaffNav';
 import CajaView from './admin/CajaView';
 import OrdenesTurno from './admin/OrdenesTurno';
@@ -7,28 +8,32 @@ import Inventario from './admin/Inventario';
 import PrintSettings from './admin/PrintSettings';
 import Ajustes from './admin/Ajustes';
 import ErrorBoundary from './ErrorBoundary';
-import { useLiveEvents, useVisibleInterval } from '../hooks/useLiveEvents';
+import { useLiveEvents } from '../hooks/useLiveEvents';
 import { useProducts } from '../hooks/useProducts';
 import { api, downloadFile, getSession } from '../utils/api';
+import { CLAVES } from '../utils/queryClient';
 
 const Reportes = lazy(() => import('./admin/Reportes')); // recharts sólo se descarga si se abre
 
+const SIN_DATOS = [];
 const FINANZAS_VACIAS = { totalVentas: 0, totalGastos: 0, totalCaja: 0, ventasPorMetodo: {}, cantidadPedidos: 0, pendientes: 0, cancelados: 0, ticketPromedio: 0 };
 
 /** Panel de Caja / Administración. */
 export default function AdminDashboard() {
   const isAdmin = getSession()?.role === 'admin';
   const [vista, setVista] = useState('caja');
-  const [finanzas, setFinanzas] = useState(FINANZAS_VACIAS);
-  const [gastos, setGastos] = useState([]);
-  const [ordenes, setOrdenes] = useState([]);
+  const queryClient = useQueryClient();
+  // refetchInterval: respaldo del tiempo real cada minuto (solo con la pestaña visible)
+  const { data: finanzas = FINANZAS_VACIAS } = useQuery({ queryKey: CLAVES.ventasHoy, queryFn: () => api('/api/ventas/hoy'), refetchInterval: 60000, meta: { errorToast: 'fin-err' } });
+  const { data: gastos = SIN_DATOS } = useQuery({ queryKey: CLAVES.gastosHoy, queryFn: () => api('/api/gastos/hoy'), refetchInterval: 60000 });
+  const { data: ordenes = SIN_DATOS } = useQuery({ queryKey: CLAVES.ordenesTurno, queryFn: () => api('/api/orders/turno'), refetchInterval: 60000 });
   const { productos, setProductos, reload: reloadProductos } = useProducts();
 
   const cargarDatos = useCallback(() => {
-    api('/api/ventas/hoy').then(setFinanzas).catch(e => toast.error(e.message, { id: 'fin-err' }));
-    api('/api/gastos/hoy').then(setGastos).catch(() => {});
-    api('/api/orders/turno').then(setOrdenes).catch(() => {});
-  }, []);
+    queryClient.invalidateQueries({ queryKey: ['caja'] });
+    queryClient.invalidateQueries({ queryKey: ['ordenes'] });
+    queryClient.invalidateQueries({ queryKey: CLAVES.cierres });
+  }, [queryClient]);
 
   // Agrupa ráfagas de eventos en una sola recarga
   const debounce = useRef();
@@ -37,12 +42,11 @@ export default function AdminDashboard() {
     debounce.current = setTimeout(cargarDatos, 400);
   }, [cargarDatos]);
 
-  useEffect(() => { cargarDatos(); return () => clearTimeout(debounce.current); }, [cargarDatos]);
+  useEffect(() => () => clearTimeout(debounce.current), []);
 
   const live = useLiveEvents((type) => {
     if (type === 'conectado' || type.startsWith('orden:') || type.startsWith('caja:')) recargarPronto();
   });
-  useVisibleInterval(cargarDatos, 60000);
 
   const handleExcel = () => toast.promise(
     downloadFile('/api/ventas/excel/actual', `Cierre_Parcial_${new Date().toISOString().slice(0, 10)}.xlsx`),

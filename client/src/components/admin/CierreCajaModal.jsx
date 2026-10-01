@@ -180,7 +180,7 @@ export default function CierreCajaModal({ finanzas, pendiente, onClose, onClosed
               )}
             </div>
 
-            <div className="modal-footer bg-light border-0">
+            <div className="modal-footer bg-body-tertiary border-0">
               {paso > 0 && paso < 3 && (
                 <button className="btn btn-outline-secondary me-auto" onClick={() => setPaso(p => p - 1)} disabled={enviando}>
                   <i className="bi bi-arrow-left me-1"></i>Atrás

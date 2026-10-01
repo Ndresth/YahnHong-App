@@ -77,7 +77,7 @@ export default function ProductForm({ productToEdit, onClose, onSave }) {
                 </div>
               </form>
             </div>
-            <div className="modal-footer bg-light">
+            <div className="modal-footer bg-body-tertiary">
               <button type="button" className="btn btn-outline-secondary" onClick={onClose}>Cancelar</button>
               <button type="submit" form="productForm" className="btn btn-success fw-bold px-4" disabled={guardando || (!hasSizes && !hasUnique)}>
                 {guardando ? <span className="spinner-border spinner-border-sm me-2"></span> : <i className="bi bi-save me-2"></i>}Guardar

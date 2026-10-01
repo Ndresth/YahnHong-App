@@ -14,7 +14,7 @@ export default function DesechablesPicker({ value, onChange, tieneBebida = false
             <span className="fw-semibold">{d.nombre}</span>
             <span className="small text-muted ms-1">{d.precio ? `${money(d.precio)} c/u` : 'gratis'} · máx {d.max}</span>
           </div>
-          <div className="qty-control bg-white">
+          <div className="qty-control bg-body">
             <button type="button" onClick={() => set(d, value[d.key] - 1)} disabled={value[d.key] === 0} aria-label={`Menos ${d.nombre}`}>−</button>
             <span aria-live="polite">{value[d.key]}</span>
             <button type="button" onClick={() => set(d, value[d.key] + 1)} disabled={value[d.key] >= d.max} aria-label={`Más ${d.nombre}`}>+</button>

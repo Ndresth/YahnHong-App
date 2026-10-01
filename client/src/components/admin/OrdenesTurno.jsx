@@ -21,7 +21,7 @@ const FILTROS = [
 
 const ESTADO_BADGE = {
   Pendiente: 'bg-secondary', Preparando: 'bg-primary', Listo: 'bg-success',
-  Completado: 'bg-light text-dark border', Cancelado: 'bg-danger'
+  Completado: 'bg-body-tertiary text-body border', Cancelado: 'bg-danger'
 };
 
 /** Todas las órdenes del turno: reimprimir, corregir método de pago o anular. */

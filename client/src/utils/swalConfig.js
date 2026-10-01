@@ -4,7 +4,7 @@ import Swal from 'sweetalert2';
 export const swalBootstrap = Swal.mixin({
     customClass: {
         popup: 'rounded-4 shadow',
-        title: 'text-dark fw-bold fs-4',
+        title: 'text-body fw-bold fs-4',
         htmlContainer: 'text-muted',
         confirmButton: 'btn btn-success fw-bold px-4 py-2 mx-2 rounded-pill',
         cancelButton: 'btn btn-outline-secondary fw-bold px-4 py-2 mx-2 rounded-pill',

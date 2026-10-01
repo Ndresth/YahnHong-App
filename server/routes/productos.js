@@ -4,6 +4,7 @@ const { TAMANOS } = require('../models/ProductModel');
 const { requireAuth, optionalAuth, ROLES } = require('../middleware/auth');
 const { categoriasSoloPos } = require('../../shared/config.json');
 const { cleanText, HttpError } = require('../lib/util');
+const { esquemas, validar } = require('../lib/esquemas');
 
 const router = express.Router();
 
@@ -53,7 +54,7 @@ router.get('/', optionalAuth, async (req, res) => {
     res.json(req.user ? menu : menu.filter(p => !categoriasSoloPos.includes(p.categoria)));
 });
 
-router.post('/', requireAuth(ROLES.ADMIN), async (req, res) => {
+router.post('/', requireAuth(ROLES.ADMIN), validar(esquemas.producto), async (req, res) => {
     const data = sanitize(req.body);
     const last = await Product.findOne().sort({ id: -1 }).select('id').lean();
     const nuevo = await Product.create({ ...data, id: (last?.id || 0) + 1 });
@@ -61,7 +62,7 @@ router.post('/', requireAuth(ROLES.ADMIN), async (req, res) => {
     res.status(201).json(nuevo);
 });
 
-router.put('/:id', requireAuth(ROLES.ADMIN), async (req, res) => {
+router.put('/:id', requireAuth(ROLES.ADMIN), validar(esquemas.producto), async (req, res) => {
     const act = await Product.findOneAndUpdate(
         { id: Number(req.params.id) }, sanitize(req.body), { returnDocument: 'after', runValidators: true }
     );
@@ -71,9 +72,9 @@ router.put('/:id', requireAuth(ROLES.ADMIN), async (req, res) => {
 });
 
 // Marcar agotado / disponible (lo puede hacer caja durante el servicio)
-router.patch('/:id/disponible', requireAuth(ROLES.ADMIN, ROLES.CAJERO), async (req, res) => {
+router.patch('/:id/disponible', requireAuth(ROLES.ADMIN, ROLES.CAJERO), validar(esquemas.disponible), async (req, res) => {
     const act = await Product.findOneAndUpdate(
-        { id: Number(req.params.id) }, { disponible: Boolean(req.body?.disponible) }, { returnDocument: 'after' }
+        { id: Number(req.params.id) }, { disponible: req.body.disponible }, { returnDocument: 'after' }
     );
     if (!act) throw new HttpError(404, 'Producto no encontrado');
     invalidate();
