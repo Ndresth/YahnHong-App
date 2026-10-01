@@ -4,6 +4,11 @@ import App from './App.jsx'
 
 import 'bootstrap/dist/css/bootstrap.min.css'
 import 'bootstrap-icons/font/bootstrap-icons.min.css'
+// Fuente Poppins servida desde la propia app (sin depender de Google Fonts): carga más rápida
+import '@fontsource/poppins/latin-400.css'
+import '@fontsource/poppins/latin-600.css'
+import '@fontsource/poppins/latin-700.css'
+import '@fontsource/poppins/latin-800.css'
 
 import './index.css'
 
