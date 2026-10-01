@@ -1,6 +1,8 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from './utils/queryClient';
 import { CartProvider } from './context/CartContext';
 import { getSession } from './utils/api';
 import { HOME_BY_ROLE } from './config';
@@ -33,36 +35,38 @@ const Loader = () => (
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <ErrorBoundary>
-        <Suspense fallback={<Loader />}>
-          <Routes>
-            <Route path="/" element={<CartProvider storageKey="cartWeb"><PublicMenu /></CartProvider>} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/admin" element={
-              <ProtectedRoute allowedRoles={['admin', 'cajero']}><AdminDashboard /></ProtectedRoute>
-            } />
-            <Route path="/pos" element={
-              <ProtectedRoute allowedRoles={['admin', 'cajero', 'mesera']}>
-                <CartProvider storageKey="cartPos"><PosPage /></CartProvider>
-              </ProtectedRoute>
-            } />
-            <Route path="/cocina" element={
-              <ProtectedRoute allowedRoles={['admin', 'cajero', 'mesera', 'cocina']}><KitchenPage /></ProtectedRoute>
-            } />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
-      </ErrorBoundary>
-      <Toaster
-        position="top-center"
-        toastOptions={{
-          duration: 2500,
-          style: { background: '#27272a', color: '#fff', borderRadius: '12px', fontWeight: 500 },
-          success: { iconTheme: { primary: '#22c55e', secondary: '#fff' } },
-          error: { duration: 4000, iconTheme: { primary: '#ef4444', secondary: '#fff' } }
-        }}
-      />
-    </BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <ErrorBoundary>
+          <Suspense fallback={<Loader />}>
+            <Routes>
+              <Route path="/" element={<CartProvider storageKey="cartWeb"><PublicMenu /></CartProvider>} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/admin" element={
+                <ProtectedRoute allowedRoles={['admin', 'cajero']}><AdminDashboard /></ProtectedRoute>
+              } />
+              <Route path="/pos" element={
+                <ProtectedRoute allowedRoles={['admin', 'cajero', 'mesera']}>
+                  <CartProvider storageKey="cartPos"><PosPage /></CartProvider>
+                </ProtectedRoute>
+              } />
+              <Route path="/cocina" element={
+                <ProtectedRoute allowedRoles={['admin', 'cajero', 'mesera', 'cocina']}><KitchenPage /></ProtectedRoute>
+              } />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
+        </ErrorBoundary>
+        <Toaster
+          position="top-center"
+          toastOptions={{
+            duration: 2500,
+            style: { background: '#27272a', color: '#fff', borderRadius: '12px', fontWeight: 500 },
+            success: { iconTheme: { primary: '#22c55e', secondary: '#fff' } },
+            error: { duration: 4000, iconTheme: { primary: '#ef4444', secondary: '#fff' } }
+          }}
+        />
+      </BrowserRouter>
+    </QueryClientProvider>
   );
 }

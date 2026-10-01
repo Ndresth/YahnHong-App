@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { useQueryClient } from '@tanstack/react-query';
 import { swalBootstrap } from '../utils/swalConfig';
 import { clearSession, getSession } from '../utils/api';
 
@@ -12,6 +13,7 @@ const LINKS = [
 /** Barra superior común para POS, Cocina y Caja. */
 export default function StaffNav({ live, children }) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const session = getSession();
   const links = LINKS.filter(l => l.roles.includes(session?.role));
 
@@ -22,6 +24,7 @@ export default function StaffNav({ live, children }) {
     });
     if (!r.isConfirmed) return;
     clearSession();
+    queryClient.clear(); // el siguiente usuario no ve datos de la sesión anterior
     navigate('/login');
     toast.success('Sesión cerrada');
   };

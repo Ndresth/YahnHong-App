@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import toast from 'react-hot-toast';
 import Swal from 'sweetalert2';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, downloadFile } from '../../utils/api';
+import { CLAVES } from '../../utils/queryClient';
 import { fechaArchivo } from '../../utils/format';
 import { diaLargo, sumarDias } from '../../utils/fechas';
 import { HORARIO_TEXTO } from '../../config';
@@ -17,12 +19,13 @@ const labelRol = (r) => ROLES.find(x => x.id === r)?.label || r;
 /** Días especiales sin pedidos web (lo pueden usar caja y admin). */
 function DiasCerrados() {
   const hoy = fechaArchivo();
-  const [dias, setDias] = useState(null);
+  const queryClient = useQueryClient();
+  const { data, isError } = useQuery({ queryKey: CLAVES.diasCerrados, queryFn: () => api('/api/dias-cerrados'), meta: { errorToast: 'dias-err' } });
+  const dias = isError ? [] : (data ?? null);
+  const setDias = (lista) => queryClient.setQueryData(CLAVES.diasCerrados, lista);
   const [dia, setDia] = useState(hoy);
   const [motivo, setMotivo] = useState('');
   const [guardando, setGuardando] = useState(false);
-
-  useEffect(() => { api('/api/dias-cerrados').then(setDias).catch(e => { toast.error(e.message); setDias([]); }); }, []);
 
   const agregar = async (d = dia, m = motivo) => {
     setGuardando(true);
@@ -78,12 +81,14 @@ function DiasCerrados() {
 
 /** Usuarios individuales del personal (solo admin). */
 function Usuarios() {
-  const [datos, setDatos] = useState(null);
+  const queryClient = useQueryClient();
+  const usuariosQ = useQuery({ queryKey: CLAVES.usuarios, queryFn: () => api('/api/usuarios'), meta: { errorToast: 'usuarios-err' } });
+  const datos = usuariosQ.isError ? { usuarios: [], soloIndividuales: false } : (usuariosQ.data ?? null);
+  const setDatos = (cambio) => queryClient.setQueryData(CLAVES.usuarios, cambio);
   const [nuevo, setNuevo] = useState({ nombre: '', rol: 'mesera', clave: '' });
   const [guardando, setGuardando] = useState(false);
 
-  const cargar = useCallback(() => api('/api/usuarios').then(setDatos).catch(e => { toast.error(e.message); setDatos({ usuarios: [], soloIndividuales: false }); }), []);
-  useEffect(() => { cargar(); }, [cargar]);
+  const cargar = () => queryClient.invalidateQueries({ queryKey: CLAVES.usuarios });
 
   const crear = async (e) => {
     e.preventDefault();

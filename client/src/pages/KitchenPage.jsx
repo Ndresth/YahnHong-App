@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import StaffNav from '../components/StaffNav';
-import { useLiveEvents, useVisibleInterval } from '../hooks/useLiveEvents';
+import { useLiveEvents } from '../hooks/useLiveEvents';
 import { api } from '../utils/api';
+import { CLAVES } from '../utils/queryClient';
 import { hora, minutosDesde } from '../utils/format';
 import { getPrintSettings, printOrder, setPrintSettings } from '../utils/printReceipt';
 import { TAMANO_LABEL } from '../config';
@@ -13,6 +15,7 @@ const SIGUIENTE = {
   Listo: { estado: 'Completado', label: 'Entregado', icon: 'bi-box-arrow-right', cls: 'btn-light' }
 };
 const FILTROS = ['Todos', 'Mesa', 'Llevar', 'Domicilio'];
+const SIN_ORDENES = [];
 const MIN_ALERTA = 10;
 const MIN_TARDE = 20;
 const MIN_ANTES_PROGRAMADO = 30; // un pedido programado pasa a la fila 30 min antes de su hora
@@ -52,7 +55,11 @@ const useBeep = () => {
 };
 
 export default function KitchenPage() {
-  const [ordenes, setOrdenes] = useState([]);
+  const queryClient = useQueryClient();
+  // refetchInterval: respaldo cada minuto por si el stream se pierde (solo con la pestaña visible)
+  const { data: ordenes = SIN_ORDENES } = useQuery({ queryKey: CLAVES.ordenesActivas, queryFn: () => api('/api/orders'), refetchInterval: 60000, meta: { errorToast: 'kds-err' } });
+  // Los eventos en vivo actualizan la copia en caché directamente (sin volver a pedir la lista)
+  const setOrdenes = useCallback((cambio) => queryClient.setQueryData(CLAVES.ordenesActivas, (prev = []) => cambio(prev)), [queryClient]);
   const [filtro, setFiltro] = useState('Todos');
   const [now, setNow] = useState(Date.now());
   const [nuevas, setNuevas] = useState(() => new Set());
@@ -65,9 +72,7 @@ export default function KitchenPage() {
   const opts = useRef({ sonido, autoPrint });
   useEffect(() => { opts.current = { sonido, autoPrint }; }, [sonido, autoPrint]);
 
-  const cargar = useCallback(() => {
-    api('/api/orders').then(setOrdenes).catch(e => toast.error(e.message, { id: 'kds-err' }));
-  }, []);
+  const cargar = useCallback(() => queryClient.invalidateQueries({ queryKey: CLAVES.ordenesActivas }), [queryClient]);
 
   const live = useLiveEvents((type, data) => {
     if (type === 'conectado' || type === 'caja:cerrada') return cargar();
@@ -96,7 +101,6 @@ export default function KitchenPage() {
     }
   });
 
-  useVisibleInterval(cargar, 60000); // Respaldo por si el stream se pierde
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 15000);
     return () => clearInterval(id);
