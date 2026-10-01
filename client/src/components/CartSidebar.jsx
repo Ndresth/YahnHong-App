@@ -166,7 +166,7 @@ export default function CartSidebar({ isOpen, onClose, horario }) {
                       <span>{item.quantity}</span>
                       <button onClick={() => updateQuantity(item.key, item.quantity + 1)} aria-label="Más">+</button>
                     </div>
-                    <input type="text" className="form-control form-control-sm bg-light border-0" placeholder="Nota para cocina"
+                    <input type="text" className="form-control form-control-sm bg-body-tertiary border-0" placeholder="Nota para cocina"
                       maxLength={200} value={item.nota || ''} onChange={e => updateItemNote(item.key, e.target.value)} />
                   </div>
                 </div>
@@ -233,7 +233,7 @@ export default function CartSidebar({ isOpen, onClose, horario }) {
         </div>
 
         {cart.length > 0 && (
-          <div className="border-top p-3 bg-light">
+          <div className="border-top p-3 bg-body-tertiary">
             <div className="d-flex justify-content-between align-items-center">
               <span className="fw-bold">Subtotal</span>
               <span className="fs-4 fw-bold text-danger">{money(total + costoDesechables(desechables))}</span>

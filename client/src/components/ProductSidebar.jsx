@@ -33,9 +33,9 @@ export default function ProductSidebar({ product, onClose }) {
               <h4 className="fw-bold mb-1">{product.nombre}</h4>
               <p className="text-muted small">{product.descripcion}</p>
 
-              <div className="d-flex align-items-center justify-content-between my-3 p-2 bg-light rounded-3">
+              <div className="d-flex align-items-center justify-content-between my-3 p-2 bg-body-tertiary rounded-3">
                 <span className="fw-semibold ps-1">Cantidad</span>
-                <div className="qty-control bg-white">
+                <div className="qty-control bg-body">
                   <button onClick={() => setCantidad(c => Math.max(1, c - 1))} aria-label="Menos">−</button>
                   <span>{cantidad}</span>
                   <button onClick={() => setCantidad(c => Math.min(99, c + 1))} aria-label="Más">+</button>

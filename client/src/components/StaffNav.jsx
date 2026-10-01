@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { swalBootstrap } from '../utils/swalConfig';
 import { clearSession, getSession } from '../utils/api';
+import BotonTema from './BotonTema';
 
 const LINKS = [
   { to: '/pos', label: 'POS', icon: 'bi-grid-3x3-gap-fill', roles: ['admin', 'cajero', 'mesera'] },
@@ -11,7 +12,7 @@ const LINKS = [
 ];
 
 /** Barra superior común para POS, Cocina y Caja. */
-export default function StaffNav({ live, children }) {
+export default function StaffNav({ live, children, conTema = true }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const session = getSession();
@@ -41,6 +42,7 @@ export default function StaffNav({ live, children }) {
       </div>
       <div className="ms-auto d-flex align-items-center gap-2">
         {children}
+        {conTema && <BotonTema />}
         {live !== undefined && (
           <span className="small text-white-50 d-flex align-items-center gap-1" title={live ? 'Conectado en tiempo real' : 'Reconectando…'}>
             <span className={`live-dot ${live ? 'on' : ''}`}></span>

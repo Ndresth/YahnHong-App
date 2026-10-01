@@ -2,6 +2,17 @@
 
 Sistema para restaurante: menú público con pedidos por WhatsApp, POS para meseras, pantalla de cocina en tiempo real y caja con arqueo, gastos, reportes y Excel.
 
+## Tecnologías
+
+| Parte | Tecnología |
+|---|---|
+| Interfaz | React 19 + Vite, **Bootstrap 5.3** + Bootstrap Icons, fuente Poppins servida por la app (`@fontsource`) |
+| Modo claro/oscuro | Sistema de color de Bootstrap 5.3 (`data-bs-theme`). Botón sol/luna en la barra del personal y junto al buscador del menú; se recuerda en cada equipo (`public/tema.js` lo aplica antes de pintar) |
+| Datos en el navegador | **TanStack Query** (`client/src/utils/queryClient.js`): caché compartida, reintentos si falla la red o el servidor, recarga al volver a la pestaña o al recuperar internet |
+| CSS liviano | **PurgeCSS** en el build (`client/vite.config.js`): quita del CSS las clases que no se usan (~330 KB → ~78 KB). Las clases deben escribirse completas en el código (`'btn-success'`, nunca `'btn-' + color`) |
+| Servidor | Express 5 + Mongoose 9, JWT, eventos en vivo (SSE), Helmet |
+| Validación de la API | **Zod** (`server/lib/esquemas.js`): contrato de cada ruta; tipos estrictos, campos desconocidos descartados, errores 400 en español con el campo exacto |
+
 ## Módulos
 
 | Ruta | Quién | Qué hace |
@@ -116,10 +127,12 @@ El plan gratuito de Atlas **no hace copias de seguridad**.
 - Límite de intentos: login 10 fallos cada 15 min por IP; pedidos web 8 cada 10 min por IP.
 - Cabeceras de seguridad con Helmet (incluye CSP) y cuerpo máximo de 100 KB.
 - Todo lo que se imprime se escapa (evita inyectar HTML o scripts desde un pedido web).
+- Toda entrada pasa por un esquema **Zod**: un objeto con operadores de Mongo (`{"$ne": null}`) donde va texto o número se rechaza antes de llegar a la BD.
+- Sin recursos de terceros para mostrar la página (fuentes locales); la CSP solo permite el propio dominio.
 
 ## Pruebas y CI
 
-- `cd server && npm test`: pruebas del servidor (precios, desechables, horario y festivos, Recoger/hora programada, usuarios y sesiones, reportes, respaldo). No necesitan base de datos.
+- `cd server && npm test`: pruebas del servidor (precios, desechables, horario y festivos, Recoger/hora programada, usuarios y sesiones, reportes, respaldo, validación Zod). No necesitan base de datos.
 - `.github/workflows/ci.yml` corre en cada PR y en `main`: pruebas del servidor, lint y build del cliente.
 
 ## Configuración compartida

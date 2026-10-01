@@ -14,7 +14,7 @@ const escribiendo = (el) => el && (el.tagName === 'INPUT' || el.tagName === 'TEX
  * variant="pos": cada tamaño es un botón que agrega directo (onAdd). Vista con fotos o lista compacta.
  * Teclado: "/" enfoca el buscador, Esc lo limpia y, en el POS, Enter agrega el único resultado.
  */
-export default function MenuBrowser({ productos, loading, variant = 'public', onSelect, onAdd, onQuickAdd, enCarrito, compacto = false, onToggleCompacto, stickyTop }) {
+export default function MenuBrowser({ productos, loading, variant = 'public', onSelect, onAdd, onQuickAdd, enCarrito, compacto = false, onToggleCompacto, stickyTop, junto }) {
   const [filtro, setFiltro] = useState('Todos');
   const [busqueda, setBusqueda] = useState('');
   const buscador = useRef(null);
@@ -85,6 +85,7 @@ export default function MenuBrowser({ productos, loading, variant = 'public', on
                 <button className={compacto ? 'active' : ''} onClick={() => !compacto && onToggleCompacto()} title="Lista compacta: caben más productos"><i className="bi bi-list"></i><span className="d-none d-xl-inline ms-1">Lista</span></button>
               </div>
             )}
+            {junto}
           </div>
           <div className="filter-scroll">
             {categorias.map(cat => (

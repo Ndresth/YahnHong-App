@@ -146,7 +146,7 @@ export default function KitchenPage() {
 
   return (
     <div className="kds">
-      <StaffNav live={live}>
+      <StaffNav live={live} conTema={false}>
         <button className={`btn btn-sm ${sonido ? 'btn-warning' : 'btn-outline-light'}`} onClick={toggleSonido} title="Sonido al llegar orden">
           <i className={`bi ${sonido ? 'bi-volume-up-fill' : 'bi-volume-mute'}`}></i>
         </button>
