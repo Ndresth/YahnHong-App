@@ -4,6 +4,7 @@ const rateLimit = require('express-rate-limit');
 const Usuario = require('../models/UsuarioModel');
 const { ROLES, signToken } = require('../middleware/auth');
 const { cleanText } = require('../lib/util');
+const { esquemas, validar } = require('../lib/esquemas');
 const { claveKey, verificarClave, soloIndividuales } = require('../lib/usuarios');
 
 const router = express.Router();
@@ -51,7 +52,7 @@ const responder = (res, { role, nombre, uid }) => {
  * 2) Si no, clave compartida del rol (variables de entorno). Con "sólo usuarios individuales"
  *    activado, las claves compartidas únicamente sirven para el admin (para no quedar por fuera).
  */
-router.post('/login', loginLimiter, async (req, res) => {
+router.post('/login', loginLimiter, validar(esquemas.login), async (req, res) => {
     const password = typeof req.body?.password === 'string' ? req.body.password : '';
     const nombre = cleanText(req.body?.nombre, 40);
     const invalidas = () => res.status(401).json({ message: 'Credenciales inválidas' });

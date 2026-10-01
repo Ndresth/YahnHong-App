@@ -7,6 +7,7 @@ const { TAMANOS } = require('../models/ProductModel');
 const Counter = require('../models/CounterModel');
 const { requireAuth, optionalAuth, ROLES, STAFF } = require('../middleware/auth');
 const { cleanText, isObjectId, HttpError } = require('../lib/util');
+const { esquemas, validar } = require('../lib/esquemas');
 const events = require('../lib/events');
 const { buildDesechables, CATEGORIA_BEBIDAS } = require('../lib/desechables');
 const { diaBogota, parseHoraProgramada, sumarDias, TZ } = require('../lib/fechas');
@@ -85,7 +86,7 @@ const validarHorarioWeb = async (horaProgramada, ahora = new Date()) => {
 };
 
 // --- CREAR ORDEN (POS o Web) ---
-router.post('/', optionalAuth, publicOrderLimiter, async (req, res) => {
+router.post('/', optionalAuth, publicOrderLimiter, validar(esquemas.orden), async (req, res) => {
     const body = req.body || {};
     const esStaff = req.user && PUEDEN_VENDER.includes(req.user.role);
     // La web pública sólo puede crear domicilios o pedidos para recoger
@@ -157,7 +158,7 @@ router.get('/turno', requireAuth(...CAJA), async (req, res) => {
 
 // --- ADICIONAR PRODUCTOS A UNA ORDEN YA ENVIADA (POS) ---
 // La orden vuelve a cocina si ya estaba Lista o Entregada; los ítems nuevos quedan marcados (agregadoEn).
-router.post('/:id/items', requireAuth(...PUEDEN_VENDER), async (req, res) => {
+router.post('/:id/items', requireAuth(...PUEDEN_VENDER), validar(esquemas.adicion), async (req, res) => {
     if (!isObjectId(req.params.id)) throw new HttpError(400, 'ID inválido');
     const actual = await Order.findOne({ _id: req.params.id, cierre_id: null }).lean();
     if (!actual) throw new HttpError(404, 'Orden no encontrada o ya cerrada en caja');
@@ -199,7 +200,7 @@ router.post('/:id/items', requireAuth(...PUEDEN_VENDER), async (req, res) => {
 });
 
 // --- CAMBIO DE ESTADO (flujo de cocina) ---
-router.patch('/:id/estado', requireAuth(...STAFF), async (req, res) => {
+router.patch('/:id/estado', requireAuth(...STAFF), validar(esquemas.estado), async (req, res) => {
     const { estado } = req.body || {};
     if (!isObjectId(req.params.id)) throw new HttpError(400, 'ID inválido');
     if (![...ACTIVOS, 'Completado', 'Cancelado'].includes(estado)) throw new HttpError(400, 'Estado inválido');
@@ -220,7 +221,7 @@ router.patch('/:id/estado', requireAuth(...STAFF), async (req, res) => {
 });
 
 // --- CORREGIR MÉTODO DE PAGO (caja): un método o pago dividido { pagos: [{ metodo, monto }] } ---
-router.patch('/:id/pago', requireAuth(...CAJA), async (req, res) => {
+router.patch('/:id/pago', requireAuth(...CAJA), validar(esquemas.pago), async (req, res) => {
     const { metodoPago, pagos: rawPagos } = req.body || {};
     if (!isObjectId(req.params.id)) throw new HttpError(400, 'ID inválido');
 

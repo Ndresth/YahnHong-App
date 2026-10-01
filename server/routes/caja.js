@@ -6,6 +6,7 @@ const Cierre = require('../models/CierreModel');
 const Counter = require('../models/CounterModel');
 const { requireAuth, ROLES } = require('../middleware/auth');
 const { cleanText, isObjectId, HttpError } = require('../lib/util');
+const { esquemas, validar } = require('../lib/esquemas');
 const events = require('../lib/events');
 const diasCerrados = require('../lib/diasCerrados');
 const mongoose = require('mongoose');
@@ -45,7 +46,7 @@ const calcularBalance = (ordenes, gastos) => {
 const CAMPOS_BALANCE = 'total estado cliente.metodoPago pagos fecha';
 
 // --- GASTOS ---
-router.post('/gastos', CAJA, async (req, res) => {
+router.post('/gastos', CAJA, validar(esquemas.gasto), async (req, res) => {
     const descripcion = cleanText(req.body?.descripcion, 120);
     const monto = Math.round(Number(req.body?.monto));
     if (!descripcion) throw new HttpError(400, 'La descripción es obligatoria');
@@ -73,7 +74,7 @@ router.get('/dias-cerrados', CAJA, async (req, res) => {
     res.json(await diasCerrados.listar());
 });
 
-router.post('/dias-cerrados', CAJA, async (req, res) => {
+router.post('/dias-cerrados', CAJA, validar(esquemas.diaCerrado), async (req, res) => {
     const dia = String(req.body?.dia || '');
     const hoy = diaBogota();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dia) || Number.isNaN(new Date(dia).getTime())) throw new HttpError(400, 'Fecha inválida');
@@ -100,7 +101,7 @@ router.get('/ventas/hoy', CAJA, async (req, res) => {
 
 // --- CERRAR CAJA ---
 let cerrando = false; // Evita dos cierres simultáneos (una sola instancia)
-router.post('/ventas/cerrar', CAJA, async (req, res) => {
+router.post('/ventas/cerrar', CAJA, validar(esquemas.cierre), async (req, res) => {
     const efectivoReal = Math.round(Number(req.body?.efectivoReal));
     if (!Number.isFinite(efectivoReal) || efectivoReal < 0) throw new HttpError(400, 'Efectivo inválido');
     if (cerrando) throw new HttpError(409, 'Ya hay un cierre en proceso');
